@@ -25,15 +25,15 @@ const emit = defineEmits<{
 <template>
   <div
     v-if="loading && mods.length === 0"
-    class="grid grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-4"
+    class="grid grid-cols-[repeat(auto-fill,minmax(250px,1fr))] gap-5"
   >
     <div
       v-for="i in 8"
       :key="i"
-      class="overflow-hidden rounded-xl border border-line bg-surface"
+      class="overflow-hidden rounded-2xl border border-line bg-surface shadow-card"
     >
       <Skeleton class="aspect-video rounded-none" />
-      <div class="flex flex-col gap-2 p-3">
+      <div class="flex flex-col gap-2 p-4">
         <div class="flex gap-1.5">
           <Skeleton class="h-[18px] w-14" />
           <Skeleton class="h-[18px] w-12" />
@@ -53,7 +53,7 @@ const emit = defineEmits<{
     <template #icon><Boxes class="size-5" aria-hidden="true" /></template>
   </EmptyState>
 
-  <div v-else class="grid grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-4">
+  <div v-else class="grid grid-cols-[repeat(auto-fill,minmax(250px,1fr))] gap-5">
     <ModCard
       v-for="m in mods"
       :key="m.workshop_id"

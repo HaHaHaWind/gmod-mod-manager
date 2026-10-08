@@ -21,7 +21,7 @@ const toneClass: Record<'accent' | 'success' | 'danger', string> = {
 
 <template>
   <div
-    :class="cn('h-1.5 w-full overflow-hidden rounded-full bg-surface-sunken', props.class)"
+    :class="cn('h-2 w-full overflow-hidden rounded-full bg-surface-sunken', props.class)"
     role="progressbar"
     :aria-valuenow="pct"
     aria-valuemin="0"

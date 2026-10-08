@@ -151,7 +151,7 @@ onMounted(load)
 <template>
   <div class="space-y-4">
     <div v-if="loading && !mod" class="space-y-4">
-      <div class="rounded-xl border border-line bg-surface p-4">
+      <div class="rounded-2xl border border-line bg-surface p-5 shadow-card">
         <div class="flex flex-col gap-4 sm:flex-row">
           <Skeleton class="aspect-video w-full rounded-lg sm:w-[280px]" />
           <div class="flex-1 space-y-2.5">
@@ -169,8 +169,8 @@ onMounted(load)
     <EmptyState v-else-if="!mod" title="未找到该 Mod" description="该条目可能已被移除,或 Workshop ID 不正确。" />
 
     <template v-else>
-      <div class="rounded-xl border border-line bg-surface">
-        <div class="flex flex-col gap-4 p-4 sm:flex-row">
+      <div class="rounded-2xl border border-line bg-surface shadow-card">
+        <div class="flex flex-col gap-4 p-5 sm:flex-row">
           <div class="w-full shrink-0 sm:w-[280px]">
             <div class="aspect-video overflow-hidden rounded-lg bg-surface-muted">
               <img

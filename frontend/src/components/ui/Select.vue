@@ -36,9 +36,9 @@ const itemValue = (v: string) => (v === '' ? EMPTY : v)
     <SelectTrigger
       :aria-label="ariaLabel"
       :class="cn(
-        'inline-flex h-[34px] w-full items-center justify-between gap-2 rounded-lg border border-line',
-        'bg-surface px-2.5 text-[13px] text-ink transition-colors hover:border-line-strong',
-        'focus-visible:border-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/25',
+        'inline-flex h-9 w-full items-center justify-between gap-2 rounded-xl border border-line',
+        'bg-surface px-3 text-[13px] text-ink transition-colors hover:border-line-strong',
+        'focus-visible:border-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/35',
         'disabled:cursor-not-allowed disabled:bg-surface-muted disabled:text-ink-3',
         props.class,
       )"
@@ -52,14 +52,14 @@ const itemValue = (v: string) => (v === '' ? EMPTY : v)
       <SelectContent
         position="popper"
         :side-offset="4"
-        class="z-50 max-h-64 min-w-[var(--reka-select-trigger-width)] animate-ui-in overflow-hidden rounded-lg border border-line bg-surface shadow-lg shadow-ink/10"
+        class="z-50 max-h-64 min-w-[var(--reka-select-trigger-width)] animate-ui-in overflow-hidden rounded-xl border border-line bg-surface shadow-pop"
       >
         <SelectViewport class="p-1">
           <SelectItem
             v-for="o in options"
             :key="o.value"
             :value="itemValue(o.value)"
-            class="relative flex cursor-pointer select-none items-center rounded-md py-1.5 pl-7 pr-2 text-[13px] text-ink-2 outline-none data-[disabled]:pointer-events-none data-[disabled]:opacity-50 data-[highlighted]:bg-accent-soft data-[highlighted]:text-accent-strong"
+            class="relative flex cursor-pointer select-none items-center rounded-lg py-1.5 pl-7 pr-2 text-[13px] text-ink-2 outline-none data-[disabled]:pointer-events-none data-[disabled]:opacity-50 data-[highlighted]:bg-accent-soft data-[highlighted]:text-accent-strong"
           >
             <SelectItemIndicator class="absolute left-2 inline-flex items-center">
               <Check class="size-3.5 text-accent" aria-hidden="true" />

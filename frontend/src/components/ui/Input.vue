@@ -23,9 +23,9 @@ const restAttrs = computed(() => {
 })
 const classes = computed(() =>
   cn(
-    'h-[34px] w-full rounded-lg border border-line bg-surface px-3 text-[13px] text-ink transition-colors',
+    'h-9 w-full rounded-xl border border-line bg-surface px-3.5 text-[13px] text-ink transition-colors',
     'placeholder:text-ink-4 hover:border-line-strong',
-    'focus-visible:border-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/25',
+    'focus-visible:border-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/35',
     'disabled:cursor-not-allowed disabled:bg-surface-muted disabled:text-ink-3',
     attrs.class as string,
   ),

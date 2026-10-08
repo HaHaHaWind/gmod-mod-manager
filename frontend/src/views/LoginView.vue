@@ -45,7 +45,7 @@ async function submit() {
 
 const gridStyle = {
   backgroundImage:
-    'radial-gradient(70% 55% at 15% 0%, rgba(9,105,218,0.42), transparent 68%),' +
+    'radial-gradient(70% 55% at 15% 0%, rgba(37,99,235,0.45), transparent 68%),' +
     'linear-gradient(rgba(255,255,255,0.045) 1px, transparent 1px),' +
     'linear-gradient(90deg, rgba(255,255,255,0.045) 1px, transparent 1px)',
   backgroundSize: 'auto, 34px 34px, 34px 34px',
@@ -135,7 +135,7 @@ const gridStyle = {
 
           <div
             v-if="errorMsg"
-            class="rounded-lg border border-danger/30 bg-danger-soft px-3 py-2 text-[12.5px] leading-5 text-danger"
+            class="rounded-xl border border-danger/30 bg-danger-soft px-3.5 py-2.5 text-[12.5px] leading-5 text-danger"
             role="alert"
           >
             {{ errorMsg }}

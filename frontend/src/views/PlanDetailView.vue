@@ -135,8 +135,8 @@ onMounted(() => load())
     </EmptyState>
 
     <template v-else>
-      <div class="rounded-xl border border-line bg-surface">
-        <div class="flex flex-col gap-4 p-4 lg:flex-row lg:items-start lg:justify-between">
+      <div class="rounded-2xl border border-line bg-surface shadow-card">
+        <div class="flex flex-col gap-4 p-5 lg:flex-row lg:items-start lg:justify-between">
           <div class="min-w-0">
             <div class="flex items-center gap-2">
               <Button

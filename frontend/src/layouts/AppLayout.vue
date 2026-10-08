@@ -58,22 +58,22 @@ const restartCount = computed(() => system.status?.counts.requires_restart ?? 0)
 </script>
 
 <template>
-  <div class="min-h-screen bg-canvas lg:grid lg:grid-cols-[236px_minmax(0,1fr)]">
+  <div class="min-h-screen bg-canvas lg:grid lg:grid-cols-[248px_minmax(0,1fr)]">
     <div v-if="navOpen" class="fixed inset-0 z-40 bg-ink/35 lg:hidden" @click="navOpen = false" />
 
     <aside
       :class="cn(
-        'fixed inset-y-0 left-0 z-50 flex w-[236px] flex-col border-r border-line bg-surface',
+        'fixed inset-y-0 left-0 z-50 flex w-[248px] flex-col border-r border-line bg-surface/70 backdrop-blur-xl',
         'transition-transform duration-200 lg:sticky lg:top-0 lg:h-screen lg:translate-x-0',
         navOpen ? 'translate-x-0' : '-translate-x-full',
       )"
     >
-      <div class="flex h-14 shrink-0 items-center gap-2.5 border-b border-line px-4">
-        <span class="flex size-8 items-center justify-center rounded-lg bg-accent-soft text-accent">
-          <Server class="size-4" aria-hidden="true" />
+      <div class="flex h-16 shrink-0 items-center gap-3 border-b border-line px-5">
+        <span class="flex size-9 items-center justify-center rounded-xl bg-accent text-white shadow-[0_6px_16px_-6px_rgb(37_99_235/0.6)]">
+          <Server class="size-[18px]" aria-hidden="true" />
         </span>
         <div class="min-w-0 flex-1">
-          <p class="truncate text-[13px] font-semibold leading-4 text-ink">GMod Mod 管理面板</p>
+          <p class="truncate text-[13.5px] font-semibold leading-4 tracking-tight text-ink">GMod Mod 管理面板</p>
           <p class="truncate text-[11px] leading-4 text-ink-4">Workshop 服务端</p>
         </div>
         <Button
@@ -87,15 +87,15 @@ const restartCount = computed(() => system.status?.counts.requires_restart ?? 0)
         </Button>
       </div>
 
-      <nav class="flex-1 space-y-0.5 overflow-y-auto p-2">
+      <nav class="flex-1 space-y-1 overflow-y-auto p-3">
         <RouterLink
           v-for="item in nav"
           :key="item.name"
           :to="item.to"
           :class="cn(
-            'group flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] font-medium transition-colors',
+            'group flex items-center gap-2.5 rounded-xl px-3 py-2.5 text-[13px] font-medium transition-all duration-150',
             isActive(item.name)
-              ? 'bg-accent-soft text-accent-strong'
+              ? 'bg-accent-soft text-accent-strong ring-1 ring-inset ring-accent-line/70'
               : 'text-ink-2 hover:bg-surface-muted hover:text-ink',
           )"
           @click="navOpen = false"
@@ -115,7 +115,7 @@ const restartCount = computed(() => system.status?.counts.requires_restart ?? 0)
       </nav>
 
       <div class="shrink-0 border-t border-line p-3">
-        <div class="rounded-lg bg-surface-muted px-2.5 py-2">
+        <div class="rounded-xl bg-surface-muted px-3 py-2.5">
           <p class="text-[11px] font-medium text-ink-3">系统状态</p>
           <div class="mt-1.5 space-y-1 text-[11.5px]">
             <div class="flex items-center justify-between">
@@ -145,7 +145,7 @@ const restartCount = computed(() => system.status?.counts.requires_restart ?? 0)
 
     <div class="flex min-h-screen min-w-0 flex-col">
       <header
-        class="sticky top-0 z-30 flex h-14 items-center gap-3 border-b border-line bg-surface/85 px-4 backdrop-blur lg:px-6"
+        class="sticky top-0 z-30 flex h-16 items-center gap-3 border-b border-line bg-surface/80 px-4 backdrop-blur-xl lg:px-8"
       >
         <Button
           size="icon-sm"
@@ -156,7 +156,7 @@ const restartCount = computed(() => system.status?.counts.requires_restart ?? 0)
         >
           <Menu class="size-4" aria-hidden="true" />
         </Button>
-        <h1 class="truncate text-[15px] font-semibold tracking-tight text-ink">{{ pageTitle }}</h1>
+        <h1 class="truncate text-[16px] font-semibold tracking-tight text-ink">{{ pageTitle }}</h1>
         <span class="spacer" />
 
         <div class="hidden items-center gap-1.5 md:flex">
@@ -181,7 +181,7 @@ const restartCount = computed(() => system.status?.counts.requires_restart ?? 0)
           <DropdownMenuTrigger as-child>
             <button
               type="button"
-              class="inline-flex items-center gap-1.5 rounded-lg px-1.5 py-1.5 text-[13px] text-ink-2 transition-colors hover:bg-surface-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/30"
+              class="inline-flex items-center gap-1.5 rounded-xl px-1.5 py-1.5 text-[13px] text-ink-2 transition-colors hover:bg-surface-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/30"
             >
               <span class="flex size-6 items-center justify-center rounded-full bg-accent-soft text-[11px] font-semibold uppercase text-accent-strong">
                 {{ (auth.username || '?').slice(0, 1) }}
@@ -194,7 +194,7 @@ const restartCount = computed(() => system.status?.counts.requires_restart ?? 0)
             <DropdownMenuContent
               align="end"
               :side-offset="6"
-              class="z-50 min-w-44 animate-ui-in rounded-lg border border-line bg-surface p-1 shadow-lg shadow-ink/10"
+              class="z-50 min-w-44 animate-ui-in rounded-xl border border-line bg-surface p-1 shadow-pop"
             >
               <DropdownMenuLabel class="px-2 py-1.5 text-[11px] text-ink-4">
                 {{ auth.isAdmin ? '管理员' : '普通用户' }}
@@ -212,9 +212,11 @@ const restartCount = computed(() => system.status?.counts.requires_restart ?? 0)
         </DropdownMenuRoot>
       </header>
 
-      <main class="flex-1 px-4 py-5 lg:px-6 lg:py-6">
-        <div class="mx-auto w-full max-w-[1440px]">
-          <RouterView />
+      <main class="flex-1 px-4 py-6 lg:px-8 lg:py-8">
+        <div class="mx-auto w-full max-w-[1400px]">
+          <RouterView v-slot="{ Component }">
+            <component :is="Component" :key="route.fullPath" class="animate-rise" />
+          </RouterView>
         </div>
       </main>
     </div>

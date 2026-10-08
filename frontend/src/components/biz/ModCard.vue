@@ -29,10 +29,10 @@ const workshopUrl = computed(
 
 <template>
   <article
-    class="group relative flex flex-col overflow-hidden rounded-xl border bg-surface transition-[transform,border-color,box-shadow] duration-200"
+    class="group relative flex flex-col overflow-hidden rounded-2xl border bg-surface shadow-card transition-[transform,border-color,box-shadow] duration-200"
     :class="selected
-      ? 'border-accent ring-2 ring-accent/15'
-      : 'border-line hover:-translate-y-0.5 hover:border-accent-line hover:shadow-lg hover:shadow-ink/[0.07]'"
+      ? 'border-accent ring-2 ring-accent/20'
+      : 'border-line hover:-translate-y-1 hover:border-accent-line hover:shadow-pop'"
   >
     <button
       type="button"
@@ -71,7 +71,7 @@ const workshopUrl = computed(
       <Check v-if="selected" class="size-3.5" aria-hidden="true" />
     </button>
 
-    <div class="flex flex-1 flex-col gap-2 p-3">
+    <div class="flex flex-1 flex-col gap-2.5 p-4">
       <div class="flex flex-wrap items-center gap-1.5">
         <StatusBadge
           :tone="inventoryTone(mod.inventory_state)"
@@ -91,7 +91,7 @@ const workshopUrl = computed(
 
       <button
         type="button"
-        class="truncate text-left text-[13.5px] font-semibold leading-5 text-ink transition-colors hover:text-accent"
+        class="truncate text-left text-[14px] font-semibold leading-5 tracking-tight text-ink transition-colors hover:text-accent"
         :title="title"
         @click="emit('open')"
       >
@@ -115,7 +115,7 @@ const workshopUrl = computed(
         </a>
       </div>
 
-      <div class="mt-auto flex flex-wrap items-center gap-1 border-t border-line pt-2.5">
+      <div class="mt-auto flex flex-wrap items-center gap-1 border-t border-line pt-3">
         <Button
           size="sm"
           variant="ghost"

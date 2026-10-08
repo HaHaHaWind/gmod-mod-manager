@@ -6,7 +6,7 @@ import { cn } from '@/lib/utils'
 defineOptions({ inheritAttrs: false })
 
 const badgeVariants = cva(
-  'inline-flex shrink-0 items-center gap-1 rounded-md border px-1.5 py-px text-[11.5px] font-medium leading-[18px]',
+  'inline-flex shrink-0 items-center gap-1 rounded-full border px-2 py-0.5 text-[11.5px] font-medium leading-[16px]',
   {
     variants: {
       variant: {

@@ -11,16 +11,16 @@ withDefaults(
 </script>
 
 <template>
-  <section class="overflow-hidden rounded-xl border border-line bg-surface">
+  <section class="overflow-hidden rounded-2xl border border-line bg-surface shadow-card">
     <header
       v-if="title || $slots.actions"
-      class="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 border-b border-line px-4 py-3"
+      class="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 border-b border-line px-5 py-3.5"
     >
       <div class="min-w-0">
-        <h2 v-if="title" class="truncate text-[13.5px] font-semibold tracking-tight text-ink">
+        <h2 v-if="title" class="truncate text-[14px] font-semibold tracking-tight text-ink">
           {{ title }}
         </h2>
-        <p v-if="description" class="mt-0.5 text-[12px] leading-5 text-ink-3">{{ description }}</p>
+        <p v-if="description" class="mt-0.5 text-[12.5px] leading-5 text-ink-3">{{ description }}</p>
       </div>
       <div v-if="$slots.actions" class="flex shrink-0 items-center gap-2">
         <slot name="actions" />

@@ -23,7 +23,7 @@ const meta: Record<ToastVariant, { icon: unknown; color: string }> = {
       <div
         v-for="t in items"
         :key="t.id"
-        class="pointer-events-auto flex items-start gap-2.5 rounded-lg border border-line bg-surface px-3.5 py-2.5 shadow-lg shadow-ink/10"
+        class="pointer-events-auto flex items-start gap-2.5 rounded-xl border border-line bg-surface px-4 py-3 shadow-pop"
       >
         <component
           :is="meta[t.variant].icon"

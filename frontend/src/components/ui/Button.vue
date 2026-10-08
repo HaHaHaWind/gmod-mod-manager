@@ -7,25 +7,27 @@ import { cn } from '@/lib/utils'
 defineOptions({ inheritAttrs: false })
 
 const buttonVariants = cva(
-  'inline-flex select-none items-center justify-center gap-1.5 whitespace-nowrap rounded-lg border font-medium ' +
-    'transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/30 ' +
-    'disabled:pointer-events-none disabled:opacity-45',
+  'inline-flex select-none items-center justify-center gap-1.5 whitespace-nowrap rounded-xl border font-medium ' +
+    'transition-all duration-150 active:scale-[0.985] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/35 ' +
+    'disabled:pointer-events-none disabled:opacity-45 disabled:active:scale-100',
   {
     variants: {
       variant: {
-        primary: 'border-transparent bg-accent text-white hover:bg-accent-strong',
-        secondary: 'border-line bg-surface text-ink-2 hover:bg-surface-muted hover:text-ink',
+        primary:
+          'border-transparent bg-accent text-white shadow-[0_1px_2px_rgb(13_21_34/0.10)] hover:bg-accent-strong hover:shadow-[0_2px_8px_rgb(37_99_235/0.28)]',
+        secondary:
+          'border-line bg-surface text-ink-2 shadow-[0_1px_2px_rgb(13_21_34/0.04)] hover:border-line-strong hover:bg-surface-muted hover:text-ink',
         ghost: 'border-transparent bg-transparent text-ink-3 hover:bg-surface-muted hover:text-ink',
-        success: 'border-transparent bg-ok text-white hover:bg-ok/90',
-        danger: 'border-transparent bg-danger text-white hover:bg-danger/90',
+        success: 'border-transparent bg-ok text-white shadow-[0_1px_2px_rgb(13_21_34/0.10)] hover:bg-ok/90',
+        danger: 'border-transparent bg-danger text-white shadow-[0_1px_2px_rgb(13_21_34/0.10)] hover:bg-danger/90',
         'danger-outline': 'border-danger/35 bg-surface text-danger hover:bg-danger-soft',
       },
       size: {
-        sm: 'h-7 px-2.5 text-[12.5px]',
-        md: 'h-[34px] px-3 text-[13px]',
-        lg: 'h-9 px-4 text-[13.5px]',
-        icon: 'h-[34px] w-[34px] p-0',
-        'icon-sm': 'h-7 w-7 p-0',
+        sm: 'h-8 px-3 text-[12.5px]',
+        md: 'h-9 px-3.5 text-[13px]',
+        lg: 'h-10 px-5 text-[13.5px]',
+        icon: 'h-9 w-9 p-0',
+        'icon-sm': 'h-8 w-8 p-0',
       },
     },
     defaultVariants: { variant: 'secondary', size: 'md' },
