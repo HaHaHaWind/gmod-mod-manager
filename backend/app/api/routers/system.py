@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, Query, Request
-from fastapi.responses import StreamingResponse
+from fastapi.responses import Response
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
@@ -84,7 +84,8 @@ def audit_list(db: Session = Depends(get_db), _=Depends(require_user),
 def preview_image(url: str = Query(min_length=1, max_length=2048),
                   _=Depends(require_user)):
     settings = get_settings()
-    gen = preview.stream_preview(settings, url)  # 校验失败在首帧前抛 ApiError
-    headers, _ = next(gen)
-    headers = {k: v for k, v in headers.items() if v}
-    return StreamingResponse(gen, headers=headers, media_type="application/octet-stream")
+    # 整图缓冲后返回:Content-Length 由框架按实际字节生成,
+    # 上游断流/超限时抛 ApiError 得到规整 4xx,而非半途断流
+    ctype, data = preview.fetch_preview(settings, url)
+    return Response(content=data, media_type=ctype,
+                    headers={"Cache-Control": "public, max-age=86400"})

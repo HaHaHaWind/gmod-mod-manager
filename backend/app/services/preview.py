@@ -68,8 +68,14 @@ def assert_resolves_public(host: str) -> None:
             raise bad_request("预览地址解析到内网地址,已拒绝", code="preview_ssrf_blocked")
 
 
-def stream_preview(settings: Settings, url: str):
-    """生成器:yield (headers_dict, chunk_bytes)。首个 yield 前完成全部校验。"""
+def fetch_preview(settings: Settings, url: str) -> tuple[str, bytes]:
+    """拉取整张预览图,缓冲后返回 (content_type, data)。
+
+    校验链:白名单 → SSRF → 逐跳重定向(每跳重新校验,不自动跟随)
+    → image/* → 大小上限。整图缓冲后一次性返回:上游断流/超限时抛
+    ApiError 得到规整的 4xx,而不是带着上游 Content-Length 半途断流
+    (那会触发 uvicorn "Response content shorter than Content-Length")。
+    """
     parts = validate_preview_url(url)
     assert_resolves_public(parts.hostname)
 
@@ -95,18 +101,11 @@ def stream_preview(settings: Settings, url: str):
                 ctype = (resp.headers.get("content-type") or "").split(";")[0].strip().lower()
                 if not ctype.startswith("image/"):
                     raise bad_request("预览源不是图片", code="preview_not_image")
-                headers = {
-                    "Content-Type": ctype,
-                    "Content-Length": resp.headers.get("content-length", ""),
-                    "Cache-Control": "public, max-age=86400",
-                }
-                yield headers, None
-                sent = 0
+                buf = bytearray()
                 limit = settings.preview_max_bytes
                 for chunk in resp.iter_bytes(_CHUNK):
-                    sent += len(chunk)
-                    if sent > limit:
+                    buf += chunk
+                    if len(buf) > limit:
                         raise too_many("预览图片超过大小上限", code="preview_too_large")
-                    yield None, chunk
-                return
+                return ctype, bytes(buf)
     raise bad_request("预览请求失败", code="preview_failed")

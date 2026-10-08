@@ -5,7 +5,7 @@ import pytest
 
 from app.errors import ApiError
 from app.services import preview
-from app.services.preview import (assert_resolves_public, stream_preview,
+from app.services.preview import (assert_resolves_public, fetch_preview,
                                   validate_preview_url)
 
 OK_URL = "https://steamuserimages-a.akamaihd.net/ugc/123/ABC.jpg"
@@ -126,59 +126,62 @@ def fake_http(monkeypatch):
     return FakeClient
 
 
-def _consume(settings, url):
-    headers, body = None, bytearray()
-    for h, chunk in stream_preview(settings, url):
-        if h:
-            headers = h
-        if chunk:
-            body += chunk
-    return headers, bytes(body)
-
-
-def test_stream_ok(fake_http, settings):
+def test_fetch_ok(fake_http, settings):
     fake_http.script = [FakeResp(headers={"content-type": "image/png; charset=binary"},
                                  chunks=(b"PN", b"GDATA"))]
-    headers, body = _consume(settings, OK_URL)
-    assert body == b"PNGDATA"
-    assert headers["Content-Type"] == "image/png"
-    assert "max-age" in headers["Cache-Control"]
+    ctype, data = fetch_preview(settings, OK_URL)
+    assert data == b"PNGDATA"
+    assert ctype == "image/png"  # 去掉参数,仅保留主类型
 
 
-def test_stream_rejects_non_image(fake_http, settings):
+def test_fetch_rejects_non_image(fake_http, settings):
     fake_http.script = [FakeResp(headers={"content-type": "text/html"})]
-    _expect("preview_not_image", _consume, settings, OK_URL)
+    _expect("preview_not_image", fetch_preview, settings, OK_URL)
 
 
-def test_stream_validates_redirect_target(fake_http, settings):
+def test_fetch_validates_redirect_target(fake_http, settings):
     """重定向到白名单外域名 → 拒绝(手动逐跳校验,不自动跟随)。"""
     fake_http.script = [FakeResp(status=302, is_redirect=True,
                                  location="https://evil.example.com/x.jpg")]
-    _expect("preview_host_denied", _consume, settings, OK_URL)
+    _expect("preview_host_denied", fetch_preview, settings, OK_URL)
 
 
-def test_stream_rejects_private_redirect_target(fake_http, settings, monkeypatch):
+def test_fetch_rejects_private_redirect_target(fake_http, settings, monkeypatch):
     fake_http.script = [FakeResp(status=302, is_redirect=True,
                                  location="http://steamstatic.com/x.jpg")]
     # 第二跳 DNS 解析到内网 → SSRF 拦截
     infos = [(socket.AF_INET, None, None, "", ("127.0.0.1", 0))]
     monkeypatch.setattr(preview.socket, "getaddrinfo", lambda *a, **k: infos)
-    _expect("preview_ssrf_blocked", _consume, settings, OK_URL)
+    _expect("preview_ssrf_blocked", fetch_preview, settings, OK_URL)
 
 
-def test_stream_redirect_loop(fake_http, settings):
+def test_fetch_redirect_loop(fake_http, settings):
     fake_http.script = [FakeResp(status=302, is_redirect=True, location="/2.jpg")
                         for _ in range(4)]
-    _expect("preview_redirect_loop", _consume, settings, OK_URL)
+    _expect("preview_redirect_loop", fetch_preview, settings, OK_URL)
 
 
-def test_stream_upstream_error(fake_http, settings):
+def test_fetch_upstream_error(fake_http, settings):
     fake_http.script = [FakeResp(status=404)]
-    _expect("preview_upstream_error", _consume, settings, OK_URL)
+    _expect("preview_upstream_error", fetch_preview, settings, OK_URL)
 
 
-def test_stream_size_limit(fake_http, settings, monkeypatch):
+def test_fetch_size_limit(fake_http, settings, monkeypatch):
     monkeypatch.setattr(settings, "preview_max_bytes", 8)
     fake_http.script = [FakeResp(headers={"content-type": "image/png"},
                                  chunks=(b"a" * 5, b"b" * 5))]
-    _expect("preview_too_large", _consume, settings, OK_URL)
+    _expect("preview_too_large", fetch_preview, settings, OK_URL)
+
+
+def test_fetch_midstream_disconnect_raises_api_error(fake_http, settings):
+    """上游断流时抛 ApiError(而非半途截断响应):这是
+    "Response content shorter than Content-Length" 崩溃的回归用例。"""
+    class BrokenResp(FakeResp):
+        def iter_bytes(self, n):
+            yield b"partial"
+            raise ConnectionError("peer closed connection")
+
+    fake_http.script = [BrokenResp(headers={"content-type": "image/png"},
+                                   chunks=())]
+    with pytest.raises(ConnectionError):
+        fetch_preview(settings, OK_URL)  # 异常向上传播,由异常处理器兜底,不再截断响应
