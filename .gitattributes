@@ -1,0 +1,19 @@
+# 换行符规范:脚本类文件按目标平台固定,避免跨平台复制后执行失败
+* text=auto
+
+# Linux 侧脚本/配置:始终 LF
+*.sh      text eol=lf
+*.service text eol=lf
+*.conf    text eol=lf
+*.mako    text eol=lf
+
+# Windows 侧脚本:始终 CRLF
+*.bat     text eol=crlf
+*.ps1     text eol=crlf
+
+# 二进制文件(防止误转换)
+*.png     binary
+*.jpg     binary
+*.gif     binary
+*.webp    binary
+*.ico     binary

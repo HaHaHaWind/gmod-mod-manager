@@ -76,7 +76,9 @@ def stream_preview(settings: Settings, url: str):
     for _hop in range(MAX_REDIRECTS + 1):
         cp = validate_preview_url(current)
         assert_resolves_public(cp.hostname)
-        with httpx.Client(timeout=settings.steam_timeout_seconds, follow_redirects=False) as client:
+        with httpx.Client(timeout=settings.steam_timeout_seconds,
+                          proxy=settings.steam_proxy or None,
+                          follow_redirects=False) as client:
             with client.stream("GET", current) as resp:
                 if resp.is_redirect:
                     if _hop == MAX_REDIRECTS:

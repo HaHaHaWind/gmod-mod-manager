@@ -120,8 +120,16 @@ cd backend
 run_as_service .venv/bin/alembic upgrade head
 chown -R "${SERVICE_USER}":"${SERVICE_USER}" data 2>/dev/null || true
 
-# 6) 前端产物:dist 已随仓库附带;如需重建:
-#    cd frontend && npm ci && npm run build
+# 6) 前端产物:仓库自带 dist 时直接使用;否则需 Node.js 现场构建(git clone 部署时必经此步)
+if [ ! -f frontend/dist/index.html ]; then
+  if ! command -v npm &>/dev/null; then
+    echo "!! 未发现 frontend/dist 且未检测到 npm,无法获得前端界面"
+    echo "   请安装 Node.js >= 18 后重跑本脚本,或手动执行:cd frontend && npm ci && npm run build"
+    exit 1
+  fi
+  echo "==> 未发现前端产物,使用 npm 自动构建(首次较慢)…"
+  (cd frontend && npm ci --no-audit --no-fund && npm run build)
+fi
 
 # 7) 管理员账号(交互式;当前目录为 backend,以服务账号执行)
 echo "==> 创建管理员账号(交互式输入密码)"

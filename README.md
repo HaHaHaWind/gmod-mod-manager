@@ -73,6 +73,19 @@ draft ──提交──▶ queued ──worker 领取──▶ applying ──�
 
 ## 快速开始
 
+### 一键启动(Windows 本机体验 / 无 systemd 的 Linux)
+
+**Windows**:双击项目根目录的 `start.bat`(或 PowerShell 运行 `.\start.ps1 [-Port 8000]`),脚本自动完成:创建虚拟环境并安装依赖 → 生成 `.env` → 数据库迁移 → 缺失时自动 npm 构建前端 → 询问创建管理员 → 启动服务。完成后浏览器访问 `http://127.0.0.1:8000`。
+
+**Linux**(未使用 systemd 安装方式时):
+
+```bash
+bash deploy/start.sh start     # 后台启动(默认 127.0.0.1:8000,可用 HOST=/PORT= 环境变量覆盖)
+bash deploy/start.sh stop      # 停止(仅停止面板进程,不涉及游戏服务器)
+bash deploy/start.sh restart   # 重启
+bash deploy/start.sh status    # 查看状态
+```
+
 ### 方式一:一键安装(Linux,推荐)
 
 ```bash
@@ -80,7 +93,7 @@ draft ──提交──▶ queued ──worker 领取──▶ applying ──�
 sudo bash deploy/install.sh
 ```
 
-脚本完成:创建 `gmm` 运行用户 → Python venv 与依赖 → 生成 `.env` → 数据库迁移 → 创建管理员 → 部署 systemd 服务与 nginx 站点。安装后访问 `http://<服务器IP>:8080`。
+脚本完成:创建 `gmm` 运行用户 → Python venv 与依赖 → 生成 `.env` → 数据库迁移 → 前端产物(仓库自带 `dist` 时直接使用,缺失时自动 npm 构建)→ 创建管理员 → 部署 systemd 服务与 nginx 站点。安装后访问 `http://<服务器IP>:8080`。
 
 ### 方式二:手动部署
 
@@ -134,6 +147,7 @@ READ_ONLY=true               # 只读总开关,观察期保持 true
 | `LOGIN_RATE_LIMIT` | `5/300` | 登录限速:300 秒内最多 5 次 |
 | `SESSION_TTL_HOURS` | `72` | 会话有效期 |
 | `STEAM_API_BASE` | Steam 官方 | 元数据 API,可反代 |
+| `STEAM_PROXY` | 空(直连) | 访问 Steam API 与封面 CDN 的 HTTP 代理(国内服务器建议配置) |
 | `STEAM_WEB_API_KEY` | 空 | 可选,用于作者昵称增强查询 |
 | `AUTO_FETCH_PREVIEWS` | `true` | 扫描/元数据刷新后自动抓取封面到本地(`data/previews`) |
 | `TRASH_RETENTION_DAYS` | `30` | 回收站自动永久删除天数 |

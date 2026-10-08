@@ -92,6 +92,7 @@ def download_preview(settings: Settings, wid: str, url: str) -> str:
             parts = pv.validate_preview_url(current)
             pv.assert_resolves_public(parts.hostname)
             with httpx.Client(timeout=settings.steam_timeout_seconds,
+                              proxy=settings.steam_proxy or None,
                               follow_redirects=False) as client:
                 with client.stream("GET", current) as resp:
                     if resp.is_redirect:

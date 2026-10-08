@@ -56,6 +56,9 @@ class Settings(BaseSettings):
     steam_batch_limit: int = 100
     steam_timeout_seconds: float = 15.0
     steam_retries: int = 2
+    # 访问 Steam API 与封面 CDN 走的 HTTP 代理(如 http://127.0.0.1:7890);
+    # 留空则直连,同时也会读取系统环境变量 HTTP_PROXY/HTTPS_PROXY
+    steam_proxy: str = ""
     metadata_ttl_seconds: int = 86400
     steam_web_api_key: str = ""  # 可选:作者昵称增强查询
     workshop_collection_id: str = ""  # 已知外部集合(冲突识别用)

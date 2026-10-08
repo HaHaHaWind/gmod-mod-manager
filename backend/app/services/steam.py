@@ -37,7 +37,8 @@ def _post_with_retry(settings: Settings, form: dict) -> dict:
     last_exc: Exception | None = None
     for attempt in range(settings.steam_retries + 1):
         try:
-            with httpx.Client(timeout=settings.steam_timeout_seconds) as client:
+            with httpx.Client(timeout=settings.steam_timeout_seconds,
+                              proxy=settings.steam_proxy or None) as client:
                 resp = client.post(url, data=form)
                 resp.raise_for_status()
                 return resp.json()
@@ -173,7 +174,8 @@ def _post_collection(settings: Settings, form: dict) -> dict:
     last_exc: Exception | None = None
     for attempt in range(settings.steam_retries + 1):
         try:
-            with httpx.Client(timeout=settings.steam_timeout_seconds) as client:
+            with httpx.Client(timeout=settings.steam_timeout_seconds,
+                              proxy=settings.steam_proxy or None) as client:
                 resp = client.post(url, data=form)
                 resp.raise_for_status()
                 return resp.json()
