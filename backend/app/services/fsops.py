@@ -8,7 +8,7 @@ import time
 import uuid
 from pathlib import Path
 
-from ..errors import conflict
+from ..errors import ApiError, conflict, forbidden
 from .paths import ensure_within, is_symlink
 
 
@@ -99,7 +99,10 @@ def move_item(src: Path, dst_dir: Path, new_name: str | None = None,
             dst.unlink()
     dst_dir.mkdir(parents=True, exist_ok=True)
     if same_fs(src, dst_dir):
-        os.rename(src, dst)
+        try:
+            os.rename(src, dst)
+        except PermissionError as e:
+            raise _permission_denied(e, src, dst_dir) from e
         return dst
     # 跨文件系统:暂存复制
     tmp = dst_dir / f".gmm-move-{uuid.uuid4().hex[:12]}"
@@ -118,6 +121,8 @@ def move_item(src: Path, dst_dir: Path, new_name: str | None = None,
             src.unlink()
         fsync_dir(src.parent)
         return dst
+    except PermissionError as e:
+        raise _permission_denied(e, src, dst_dir) from e
     finally:
         if tmp.exists():
             if tmp.is_dir():
@@ -154,6 +159,20 @@ def copy_item(src: Path, dst_dir: Path, new_name: str) -> Path:
                     tmp.unlink()
                 except OSError:
                     pass
+
+
+def _permission_denied(exc: PermissionError, src: Path, dst_dir: Path) -> ApiError:
+    """把文件系统权限错误翻译成可操作的 403,而不是笼统的"内部错误"。
+
+    移动/删除需要源父目录与目标目录都可写;服务账号通常缺少对
+    steam_cache/content/<id>/ 的写权限(只读授权或 srcds 新建目录未继承 ACL)。
+    """
+    return forbidden(
+        f"权限不足,无法移动 {src.name}:服务账号需对 {src.parent} 与 {dst_dir} 具备写权限"
+        f"(检查目录属主/组、setgid,或为其配置默认 ACL)。系统错误:{exc.strerror or exc}",
+        code="permission_denied",
+        details={"src": str(src), "dst_dir": str(dst_dir), "errno": exc.errno},
+    )
 
 
 def _verify_copy(src: Path, tmp: Path) -> None:

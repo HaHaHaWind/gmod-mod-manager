@@ -272,6 +272,21 @@ cd frontend && npm run dev        # http://localhost:5173
 **Q:删除错了怎么恢复?**
 进入"回收站"页,找到条目点击"还原"。超过保留天数(`TRASH_RETENTION_DAYS`,默认 30 天)会被自动清理。
 
+**Q:删除/还原时报 `[Errno 13] Permission denied`(缓存文件)?**
+服务账号(默认 `gmm`)对 Workshop 缓存目录没有写权限。删除的本质是"把缓存移出 `steam_cache/content/<id>/`",恢复是"移回",两者都需要**源目录可写**——只授只读(`g+rX`)不够。修复(注意 `setfacl -d` 默认 ACL 是关键,否则 srcds 之后新下载的目录不会继承写权限,新 Mod 删除时会再次失败):
+
+```bash
+GMOD_ROOT=/home/l4d2/Steam/steamapps/common/GarrysModDS
+sudo apt-get install -y acl
+sudo chgrp -R gmm "$GMOD_ROOT/steam_cache"
+sudo chmod -R g+rwX "$GMOD_ROOT/steam_cache"
+sudo find "$GMOD_ROOT/steam_cache" -type d -exec chmod g+s {} +
+sudo setfacl -R  -m g:gmm:rwX "$GMOD_ROOT/steam_cache"
+sudo setfacl -R -d -m g:gmm:rwX "$GMOD_ROOT/steam_cache"
+```
+
+`deploy/install.sh` 已按上述方式授权,且授权路径与 systemd `ReadWritePaths` 都直接取自 `backend/.env`——改了 `TRASH_ROOT` / `GMOD_ADDONS_ROOT` / `WORKSHOP_IDS_FILE` / `WORKSHOP_CACHE_ROOT` 后重跑脚本即可;若服务器是旧版本部署,重跑该脚本或手工执行以上命令。
+
 **Q:如何从只读切换到可写?**
 设置 `READ_ONLY=false` 并重启服务;建议先在 `observe` 模式核对扫描结果,再切 `native_ids` 或 `local_managed`。
 

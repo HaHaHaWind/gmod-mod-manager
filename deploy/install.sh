@@ -58,8 +58,10 @@ if [ ! -f backend/.env ]; then
 fi
 
 # 4) 数据目录与权限(面板需读写游戏服务器的 addons/cfg/回收站)
-mkdir -p backend/data
-chown -R "${SERVICE_USER}":"${SERVICE_USER}" backend/data
+#    logs 也必须建好并授权:LOG_DIR 默认相对 backend/,而 backend/ 属 root,
+#    不授权则文件日志静默降级为"仅终端输出"(app.log 永远不生成)
+mkdir -p backend/data backend/logs
+chown -R "${SERVICE_USER}":"${SERVICE_USER}" backend/data backend/logs
 
 # 以服务账号身份执行命令:root 下用 sudo -u,避免把数据/库文件写成 root 属主
 # (否则服务账号对库文件只读,写入时报 "attempt to write a readonly database")
@@ -70,8 +72,20 @@ run_as_service() {
     "$@"
   fi
 }
-GMOD_ADDONS="${GMOD_ROOT}/garrysmod/addons"
-GMOD_CFG="${GMOD_ROOT}/garrysmod/cfg"
+# 4.0) 授权路径以 .env 实际生效的配置为准(参数默认值仅作回退)。
+#      只按硬编码路径授权的话,用户改了 .env 里的目录后写入会直接 Permission denied。
+env_get() {
+  local key="$1" default="$2" val
+  val="$(sed -n "s/^[[:space:]]*${key}[[:space:]]*=[[:space:]]*//p" backend/.env 2>/dev/null \
+        | tail -n1 | tr -d '\r' | sed 's/[[:space:]]*$//')"
+  val="${val%\"}"; val="${val#\"}"; val="${val%\'}"; val="${val#\'}"
+  printf '%s' "${val:-$default}"
+}
+GMOD_ADDONS="$(env_get GMOD_ADDONS_ROOT "${GMOD_ROOT}/garrysmod/addons")"
+GMOD_CFG="$(dirname "$(env_get WORKSHOP_IDS_FILE "${GMOD_ROOT}/garrysmod/cfg/srcds_workshop_ids.txt")")"
+GMOD_TRASH="$(env_get TRASH_ROOT "${GMOD_ROOT}/.gmm_trash")"
+GMOD_CACHE="$(env_get WORKSHOP_CACHE_ROOT "${GMOD_ROOT}/steam_cache")"
+GMOD_SERVER_ROOT="$(env_get GMOD_SERVER_ROOT "${GMOD_ROOT}")"
 
 # 4.1) 祖先目录穿越权限:服务账号需要对路径每一级目录都有 x 权限,
 #      家目录(如 /home/l4d2)常见 700/750,会导致 stat 下层路径直接 Permission denied
@@ -85,7 +99,7 @@ grant_traverse() {
     fi
   done <<< "$(printf '%s' "${1%/}" | tr '/' '\n')"
 }
-# 4.2) 目录树授权:rwX = 组读写+目录可进入; rX = 组只读+目录可进入;
+# 4.2) 目录树授权:rwX = 组读写+目录可进入;
 #      目录额外加 g+s(setgid):gmm 新建的文件自动继承服务组,
 #      配合 4.3 把 srcds 用户入组,即使 umask 收紧也能互相读取
 grant_rw() {
@@ -93,19 +107,27 @@ grant_rw() {
   chmod -R g+rwX "$1" 2>/dev/null || true
   find "$1" -type d -exec chmod g+s {} + 2>/dev/null || true
 }
-grant_ro() {
-  chgrp -R "${SERVICE_USER}" "$1" 2>/dev/null || true
-  chmod -R g+rX  "$1" 2>/dev/null || true
-  find "$1" -type d -exec chmod g+s {} + 2>/dev/null || true
-}
 
 grant_traverse "${GMOD_ADDONS}"
-grant_traverse "${GMOD_ROOT}/steam_cache"
-for d in "${GMOD_ADDONS}" "${GMOD_CFG}" "${GMOD_ROOT}/.gmm_trash"; do
+grant_traverse "${GMOD_CFG}"
+grant_traverse "${GMOD_TRASH}"
+grant_traverse "${GMOD_CACHE}"
+for d in "${GMOD_ADDONS}" "${GMOD_CFG}" "${GMOD_TRASH}"; do
   [ -d "${d}" ] || mkdir -p "${d}"
   grant_rw "${d}"
 done
-if [ -d "${GMOD_ROOT}/steam_cache" ]; then grant_ro "${GMOD_ROOT}/steam_cache"; fi
+# 缓存目录必须"可写":删除 = 把缓存移出 <id>/,恢复 = 移回,
+# 两者都需要源父目录可写;只授只读会直接 Errno 13(Permission denied)。
+if [ -d "${GMOD_CACHE}" ]; then
+  grant_rw "${GMOD_CACHE}"
+  # srcds 之后新下载的目录不会继承 chmod,用默认 ACL 兜底,避免新 Mod 再次删除失败
+  if command -v setfacl &>/dev/null; then
+    setfacl -R  -m "g:${SERVICE_USER}:rwX" "${GMOD_CACHE}" 2>/dev/null || true
+    setfacl -R -d -m "g:${SERVICE_USER}:rwX" "${GMOD_CACHE}" 2>/dev/null || true
+  else
+    echo "!! 未安装 setfacl(acl 包):建议安装以便新目录自动继承写权限"
+  fi
+fi
 
 # 4.3) 把 srcds 运行用户加入服务组:gmm 写入 addons/ids 的文件属主为 gmm 组,
 #      srcds 用户入组后总能读到;可用 SRCDS_USER=xxx 覆盖默认值
@@ -139,7 +161,20 @@ cd ..
 
 # 8) systemd + nginx
 if [ -d /etc/systemd/system ]; then
-  sed "s#/opt/gmod-mod-manager#${APP_DIR}#g; s#User=gmm#User=${SERVICE_USER}#; s#Group=gmm#Group=${SERVICE_USER}#" \
+  # ReadWritePaths 必须跟随 .env 的实际路径,否则改了目录会被 systemd 沙箱拦下。
+  # 只列真实存在的目录(列出不存在的路径会让单元启动失败);游戏根目录优先,
+  # 已在其下的子目录不再重复列出。
+  RWP="${APP_DIR}"
+  if [ -d "${GMOD_SERVER_ROOT}" ]; then RWP="${RWP} ${GMOD_SERVER_ROOT}"; fi
+  for p in "${GMOD_ADDONS}" "${GMOD_CFG}" "${GMOD_TRASH}" "${GMOD_CACHE}"; do
+    [ -d "${p}" ] || continue
+    case "${p}" in "${GMOD_SERVER_ROOT}"/*) continue ;; esac
+    RWP="${RWP} ${p}"
+  done
+  sed -e "s#/opt/gmod-mod-manager#${APP_DIR}#g" \
+      -e "s#User=gmm#User=${SERVICE_USER}#" \
+      -e "s#Group=gmm#Group=${SERVICE_USER}#" \
+      -e "s#^ReadWritePaths=.*#ReadWritePaths=${RWP}#" \
     deploy/gmod-mod-manager.service > /etc/systemd/system/gmod-mod-manager.service
   systemctl daemon-reload
   systemctl enable --now gmod-mod-manager
