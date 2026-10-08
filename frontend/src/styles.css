@@ -1,0 +1,28 @@
+:root {
+  --gmm-bg: #f5f7fa;
+}
+
+html, body, #app {
+  height: 100%;
+  margin: 0;
+  font-family: "PingFang SC", "Microsoft YaHei", "Noto Sans CJK SC", sans-serif;
+  background: var(--gmm-bg);
+}
+
+.page-card {
+  margin-bottom: 16px;
+}
+
+.mono {
+  font-family: Consolas, "Courier New", monospace;
+  font-size: 12px;
+}
+
+.muted {
+  color: #909399;
+  font-size: 12px;
+}
+
+.state-tag + .state-tag {
+  margin-left: 4px;
+}

@@ -1,0 +1,38 @@
+# systemd 单元:GMod Workshop Mod 管理面板后端(uvicorn)
+# 安装:
+#   sudo cp deploy/gmod-mod-manager.service /etc/systemd/system/
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now gmod-mod-manager
+# 说明:
+#   - 仅启动管理面板自身;绝不管理 GMod 服务器进程(重启服务器须人工或由面板的
+#     SERVER_CONTROL_MODE=systemd 显式触发)。
+#   - WorkingDirectory 决定 DATA_DIR 相对路径与 .env 读取位置(backend/)。
+
+[Unit]
+Description=GMod Workshop Mod Manager (FastAPI backend + worker)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=exec
+# 与 install.sh 保持一致:仓库根目录 /opt/gmod-mod-manager
+WorkingDirectory=/opt/gmod-mod-manager/backend
+EnvironmentFile=-/opt/gmod-mod-manager/backend/.env
+ExecStart=/opt/gmod-mod-manager/backend/.venv/bin/uvicorn app.main:app \
+  --host 127.0.0.1 --port 8000 --workers 1
+Restart=on-failure
+RestartSec=3
+User=gmm
+Group=gmm
+# 新文件默认组可写(0664):gmm 写入的 mod/ids 文件,srcds 用户(已入 gmm 组)即可读
+UMask=002
+
+# 生产运行要求:对游戏服务器目录只做受控写入;对系统目录无权限
+NoNewPrivileges=true
+ProtectSystem=full
+ProtectHome=read-only
+# 面板需要写入游戏服务器目录(addons/cfg/回收站),显式放行读写路径
+ReadWritePaths=/opt/gmod-mod-manager /home/l4d2/Steam/steamapps/common/GarrysModDS
+
+[Install]
+WantedBy=multi-user.target

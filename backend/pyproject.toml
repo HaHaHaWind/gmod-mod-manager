@@ -1,0 +1,10 @@
+[project]
+name = "gmod-mod-manager"
+version = "1.0.0"
+description = "GMod 服务端 Workshop Mod 管理面板(后端)"
+requires-python = ">=3.10"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+filterwarnings = ["ignore::DeprecationWarning"]

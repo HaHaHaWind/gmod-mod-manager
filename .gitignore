@@ -1,0 +1,66 @@
+# ============================================================
+# gmod-mod-manager (.gitignore)
+# 技术栈:Python 3.10+ (FastAPI/Alembic/pytest) + Vue 3 (Vite/Element Plus)
+# ============================================================
+
+# ---------- 环境变量(含密钥,严禁提交;保留 .env.example) ----------
+.env
+.env.*
+!.env.example
+
+# ---------- Python ----------
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+env/
+.python-version
+
+# 测试 / 质量工具缓存
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.tox/
+.coverage
+.coverage.*
+htmlcov/
+.cache/
+
+# 打包产物
+build/
+dist/
+*.egg-info/
+.eggs/
+pip-wheel-metadata/
+
+# ---------- Node / Vue / Vite ----------
+node_modules/
+frontend/dist/
+*.local
+.npm
+.eslintcache
+*.tsbuildinfo
+
+# ---------- 运行时数据(SQLite / 日志 / 缓存) ----------
+*.db
+*.sqlite
+*.sqlite3
+*.log
+logs/
+tmp/
+.cache/
+
+# ---------- IDE / 编辑器 ----------
+.idea/
+.vscode/
+*.sublime-project
+*.sublime-workspace
+*.swp
+*.swo
+
+# ---------- 操作系统 ----------
+.DS_Store
+Thumbs.db
+desktop.ini
+$RECYCLE.BIN/
