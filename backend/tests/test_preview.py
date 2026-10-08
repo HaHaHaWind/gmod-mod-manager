@@ -139,6 +139,43 @@ def test_fetch_rejects_non_image(fake_http, settings):
     _expect("preview_not_image", fetch_preview, settings, OK_URL)
 
 
+# ---------- Content-Type 不可信:按文件头魔数复核 ----------
+
+def test_sniff_image_types():
+    assert preview.sniff_image(b"\x89PNG\r\n\x1a\nrest") == "image/png"
+    assert preview.sniff_image(b"\xff\xd8\xff\xe0junk") == "image/jpeg"
+    assert preview.sniff_image(b"GIF89a....") == "image/gif"
+    assert preview.sniff_image(b"GIF87a....") == "image/gif"
+    assert preview.sniff_image(b"RIFF\x00\x01\x02\x03WEBPVP8 ") == "image/webp"
+    assert preview.sniff_image(b"plain text") is None
+    assert preview.sniff_image(b"") is None
+
+
+def test_fetch_octet_stream_sniffed_as_image(fake_http, settings):
+    """Steam 新 CDN 对部分 UGC 图返回 application/octet-stream:
+    头不可信,按魔数复核放行,类型归一化为嗅探结果。"""
+    png = b"\x89PNG\r\n\x1a\n" + b"rest-of-image"
+    fake_http.script = [FakeResp(headers={"content-type": "application/octet-stream"},
+                                 chunks=(png[:5], png[5:]))]
+    ctype, data = fetch_preview(settings, OK_URL)
+    assert ctype == "image/png"
+    assert data == png
+
+
+def test_fetch_octet_stream_non_image_rejected(fake_http, settings):
+    """octet-stream 且内容也不是图片 → 仍然拒绝。"""
+    fake_http.script = [FakeResp(headers={"content-type": "application/octet-stream"},
+                                 chunks=(b"definitely not an image",))]
+    _expect("preview_not_image", fetch_preview, settings, OK_URL)
+
+
+def test_fetch_svg_rejected(fake_http, settings):
+    """image/svg+xml 可内嵌脚本,即使头是 image/* 也嗅探拒绝(XSS 加固)。"""
+    fake_http.script = [FakeResp(headers={"content-type": "image/svg+xml"},
+                                 chunks=(b"<svg xmlns='http://www.w3.org/2000/svg'/>",))]
+    _expect("preview_not_image", fetch_preview, settings, OK_URL)
+
+
 def test_fetch_validates_redirect_target(fake_http, settings):
     """重定向到白名单外域名 → 拒绝(手动逐跳校验,不自动跟随)。"""
     fake_http.script = [FakeResp(status=302, is_redirect=True,

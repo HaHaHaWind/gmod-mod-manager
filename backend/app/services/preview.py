@@ -5,8 +5,10 @@
 2. 仅 http/https、仅默认端口。
 3. DNS 解析结果全部为公网地址才允许(拒绝私网/环回/链路本地/保留段)。
 4. 不自动跟随重定向:手动逐跳校验(最多 3 跳),防止重定向绕过白名单。
-5. 响应必须是 image/*,且超过 PREVIEW_MAX_BYTES 立即中断。
-6. 响应头仅透传少量安全字段,并加 Cache-Control。
+5. 响应必须是图片:Content-Type 为 image/* 直接放行(image/svg+xml 除外,
+   可携带脚本);其余类型按文件头魔数复核,确为 PNG/JPEG/GIF/WebP 才放行
+   ——Steam 新 CDN 对部分 UGC 图片返回 application/octet-stream,头不可信。
+6. 超过 PREVIEW_MAX_BYTES 立即中断。
 
 已知限制(在 docs/architecture.md 中亦有记录):DNS 解析校验与实际建立连接
 之间存在经典的 TOCTOU 窗口(DNS rebinding)。由于白名单仅限大型 CDN 且
@@ -33,6 +35,28 @@ ALLOWED_HOST_SUFFIXES = (
 )
 MAX_REDIRECTS = 3
 _CHUNK = 32 * 1024
+
+# 图片文件头魔数:Content-Type 不可信时按实际内容判定类型
+_IMAGE_MAGIC = (
+    (b"\x89PNG\r\n\x1a\n", "image/png"),
+    (b"\xff\xd8\xff", "image/jpeg"),
+    (b"GIF87a", "image/gif"),
+    (b"GIF89a", "image/gif"),
+)
+
+
+def sniff_image(data: bytes) -> str | None:
+    """按文件头魔数嗅探图片类型;非图片返回 None。
+
+    Steam 新 CDN(images.steamusercontent.com)对部分 UGC 图片返回
+    application/octet-stream,Content-Type 头不可信,以实际内容为准。
+    """
+    for magic, ctype in _IMAGE_MAGIC:
+        if data.startswith(magic):
+            return ctype
+    if len(data) >= 12 and data[:4] == b"RIFF" and data[8:12] == b"WEBP":
+        return "image/webp"
+    return None
 
 
 def validate_preview_url(raw: str):
@@ -72,9 +96,10 @@ def fetch_preview(settings: Settings, url: str) -> tuple[str, bytes]:
     """拉取整张预览图,缓冲后返回 (content_type, data)。
 
     校验链:白名单 → SSRF → 逐跳重定向(每跳重新校验,不自动跟随)
-    → image/* → 大小上限。整图缓冲后一次性返回:上游断流/超限时抛
-    ApiError 得到规整的 4xx,而不是带着上游 Content-Length 半途断流
-    (那会触发 uvicorn "Response content shorter than Content-Length")。
+    → 图片内容(image/* 或魔数嗅探)→ 大小上限。整图缓冲后一次性返回:
+    上游断流/超限时抛 ApiError 得到规整的 4xx,而不是带着上游
+    Content-Length 半途断流(那会触发 uvicorn
+    "Response content shorter than Content-Length")。
     """
     parts = validate_preview_url(url)
     assert_resolves_public(parts.hostname)
@@ -99,13 +124,20 @@ def fetch_preview(settings: Settings, url: str) -> tuple[str, bytes]:
                 if resp.status_code != 200:
                     raise bad_request(f"预览源返回 HTTP {resp.status_code}", code="preview_upstream_error")
                 ctype = (resp.headers.get("content-type") or "").split(";")[0].strip().lower()
-                if not ctype.startswith("image/"):
-                    raise bad_request("预览源不是图片", code="preview_not_image")
                 buf = bytearray()
                 limit = settings.preview_max_bytes
                 for chunk in resp.iter_bytes(_CHUNK):
                     buf += chunk
                     if len(buf) > limit:
                         raise too_many("预览图片超过大小上限", code="preview_too_large")
-                return ctype, bytes(buf)
+                data = bytes(buf)
+                # Content-Type 为 image/*(SVG 除外,可携带脚本)直接放行;
+                # 其余(如 application/octet-stream)按文件头魔数复核,
+                # 确为图片才放行并把类型归一化为嗅探结果。
+                if not ctype.startswith("image/") or ctype == "image/svg+xml":
+                    sniffed = sniff_image(data)
+                    if sniffed is None:
+                        raise bad_request("预览源不是图片", code="preview_not_image")
+                    ctype = sniffed
+                return ctype, data
     raise bad_request("预览请求失败", code="preview_failed")

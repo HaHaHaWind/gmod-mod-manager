@@ -2,7 +2,7 @@
 
 设计:
 1. 存储:<data_dir>/previews/<workshop_id>.jpg 等按内容类型定后缀,与面板数据同目录,随备份一起走。
-2. 下载安全:复用 preview.py 的 URL 白名单、SSRF DNS 校验、逐跳重定向校验、image/* 校验与大小上限。
+2. 下载安全:复用 preview.py 的 URL 白名单、SSRF DNS 校验、逐跳重定向校验、图片内容校验(image/* 或魔数嗅探)与大小上限。
 3. 原子落盘:先写 .part 临时文件再 os.replace,进程中断不会留下半张图。
 4. 容错:单张失败仅计数,绝不影响扫描/刷新任务的整体结果(网络不可用只体现在统计里)。
 """
@@ -113,13 +113,22 @@ def download_preview(settings: Settings, wid: str, url: str) -> str:
                                     wid, resp.status_code, current)
                         return "failed"
                     ctype = (resp.headers.get("content-type") or "").split(";")[0].strip().lower()
-                    if ctype not in _EXT_BY_CTYPE:
-                        log.warning("预览图下载失败 wid=%s 非图片类型 ctype=%s url=%s",
-                                    wid, ctype or "空", current)
-                        return "invalid"
                     sent = 0
+                    first = True
                     with open(tmp, "wb") as f:
                         for chunk in resp.iter_bytes(_CHUNK):
+                            if first:
+                                first = False
+                                if ctype not in _EXT_BY_CTYPE:
+                                    # Steam 新 CDN 对部分 UGC 图返回
+                                    # application/octet-stream:头不可信,
+                                    # 按文件头魔数复核,确为图片才落盘
+                                    sniffed = pv.sniff_image(chunk)
+                                    if sniffed is None:
+                                        log.warning("预览图下载失败 wid=%s 非图片类型 ctype=%s url=%s",
+                                                    wid, ctype or "空", current)
+                                        return "invalid"
+                                    ctype = sniffed
                             sent += len(chunk)
                             if sent > settings.preview_max_bytes:
                                 log.warning("预览图下载失败 wid=%s 超过大小上限 %d url=%s",

@@ -152,6 +152,17 @@ def test_download_rejects_non_image(dirs, settings, monkeypatch):
     assert not ps.has_preview(settings, WID_B)
 
 
+def test_download_octet_stream_sniffed_as_png(dirs, settings, monkeypatch):
+    """Steam 新 CDN 对部分 UGC 图返回 application/octet-stream:
+    按文件头魔数复核,真图片仍落盘且后缀按嗅探结果定。"""
+    png = b"\x89PNG\r\n\x1a\n" + b"image-body"
+    _install_http(monkeypatch, {U1: _Resp(headers={"content-type": "application/octet-stream"},
+                                         chunks=[png])})
+    assert ps.download_preview(settings, WID_A, U1) == "saved"
+    f = ps.previews_dir(settings) / f"{WID_A}.png"
+    assert f.is_file() and f.read_bytes() == png
+
+
 def test_download_oversize_rejected(dirs, settings, monkeypatch):
     settings.preview_max_bytes = 10
     _install_http(monkeypatch, {U1: _Resp(headers={"content-type": "image/jpeg"},
