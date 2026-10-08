@@ -1,28 +1,182 @@
-:root {
-  --gmm-bg: #f5f7fa;
+@import 'tailwindcss';
+@import '@fontsource-variable/ibm-plex-sans';
+@import '@fontsource/ibm-plex-mono/400.css';
+@import '@fontsource/ibm-plex-mono/500.css';
+
+/* ============================================================
+   设计 token —— 亮色基调,单一强调色,冷调中性面
+   冷静的技术控制台:发丝边框 + 表格数字 + 克制的蓝色
+   ============================================================ */
+@theme {
+  /* 中性面 */
+  --color-canvas: #f7f9fc;
+  --color-surface: #ffffff;
+  --color-surface-muted: #eef2f8;
+  --color-surface-sunken: #e8edf5;
+  --color-line: #dce4ef;
+  --color-line-strong: #c3cfe0;
+
+  /* 文本层级 */
+  --color-ink: #0e1726;
+  --color-ink-2: #3c4a61;
+  --color-ink-3: #6a7890;
+  --color-ink-4: #98a4b8;
+
+  /* 强调色:仅用于链接、状态与主操作 */
+  --color-accent: #0969da;
+  --color-accent-strong: #0757b8;
+  --color-accent-soft: #e7f0fe;
+  --color-accent-line: #b6d4fb;
+
+  /* 语义色:只表达真实状态 */
+  --color-ok: #1a7f37;
+  --color-ok-soft: #e6f4ea;
+  --color-warn: #9a6700;
+  --color-warn-soft: #fdf3e0;
+  --color-danger: #cf222e;
+  --color-danger-soft: #fdecee;
+
+  --font-sans: 'IBM Plex Sans Variable', 'PingFang SC', 'Microsoft YaHei',
+    'Noto Sans CJK SC', 'Source Han Sans SC', sans-serif;
+  --font-mono: 'IBM Plex Mono', 'Cascadia Code', Consolas, 'Courier New', monospace;
+
+  --animate-ui-in: ui-in 140ms cubic-bezier(0.16, 1, 0.3, 1);
+  --animate-ui-out: ui-out 110ms ease-in;
+  --animate-rise: rise 220ms cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
-html, body, #app {
-  height: 100%;
+@keyframes ui-in {
+  from { opacity: 0; transform: translateY(-4px) scale(0.98); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes ui-out {
+  from { opacity: 1; transform: none; }
+  to { opacity: 0; transform: translateY(-2px) scale(0.99); }
+}
+@keyframes rise {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes shimmer {
+  100% { transform: translateX(100%); }
+}
+
+/* ============================================================
+   基础层
+   ============================================================ */
+html {
+  color-scheme: light;
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
   margin: 0;
-  font-family: "PingFang SC", "Microsoft YaHei", "Noto Sans CJK SC", sans-serif;
-  background: var(--gmm-bg);
+  min-height: 100vh;
+  background: var(--color-canvas);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  font-size: 14px;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
-.page-card {
-  margin-bottom: 16px;
+#app { min-height: 100vh; }
+
+::selection {
+  background: var(--color-accent-soft);
+  color: var(--color-accent-strong);
 }
 
-.mono {
-  font-family: Consolas, "Courier New", monospace;
-  font-size: 12px;
+:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+  border-radius: 4px;
 }
 
-.muted {
-  color: #909399;
-  font-size: 12px;
+/* 细滚动条,避免默认滚动条破坏精致感 */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-line-strong) transparent;
+}
+*::-webkit-scrollbar { width: 10px; height: 10px; }
+*::-webkit-scrollbar-track { background: transparent; }
+*::-webkit-scrollbar-thumb {
+  background: var(--color-line-strong);
+  border: 3px solid transparent;
+  border-radius: 999px;
+  background-clip: content-box;
+}
+*::-webkit-scrollbar-thumb:hover { background: var(--color-ink-4); background-clip: content-box; }
+
+/* 骨架屏微光 */
+.skeleton {
+  position: relative;
+  overflow: hidden;
+  background: var(--color-surface-muted);
+}
+.skeleton::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(90deg, transparent, rgb(255 255 255 / 0.72), transparent);
+  animation: shimmer 1.4s infinite;
 }
 
-.state-tag + .state-tag {
-  margin-left: 4px;
+/* ============================================================
+   组件层:表格 / 工具栏 / 文本层级(仅收敛高频重复结构)
+   ============================================================ */
+@layer components {
+  .tbl {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    font-size: 13px;
+    line-height: 20px;
+  }
+  .tbl thead th {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    background: var(--color-surface-muted);
+    border-bottom: 1px solid var(--color-line);
+    padding: 8px 12px;
+    text-align: left;
+    font-weight: 600;
+    font-size: 12px;
+    letter-spacing: 0.01em;
+    color: var(--color-ink-2);
+    white-space: nowrap;
+  }
+  .tbl tbody td {
+    border-bottom: 1px solid var(--color-line);
+    padding: 9px 12px;
+    vertical-align: middle;
+    color: var(--color-ink-2);
+  }
+  .tbl tbody tr:last-child td { border-bottom: 0; }
+  .tbl tbody tr { transition: background-color 120ms ease; }
+  .tbl tbody tr:hover { background: var(--color-surface-muted); }
+  .tbl .num { font-variant-numeric: tabular-nums; }
+
+  .toolbar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .spacer { flex: 1 1 auto; }
+  .mono { font-family: var(--font-mono); }
+  .muted { color: var(--color-ink-3); }
+  .tiny { font-size: 11px; }
+  .small { font-size: 12px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }

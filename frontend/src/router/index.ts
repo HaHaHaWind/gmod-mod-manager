@@ -7,7 +7,7 @@ const router = createRouter({
     { path: '/login', name: 'login', component: () => import('@/views/LoginView.vue'), meta: { public: true } },
     {
       path: '/',
-      component: () => import('@/components/Layout.vue'),
+      component: () => import('@/layouts/AppLayout.vue'),
       children: [
         { path: '', name: 'dashboard', component: () => import('@/views/DashboardView.vue'), meta: { title: '总览' } },
         { path: 'mods', name: 'mods', component: () => import('@/views/ModsView.vue'), meta: { title: 'Mod 库' } },

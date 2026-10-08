@@ -1,15 +1,23 @@
 <script setup lang="ts">
-/** Mod 详情:五维状态 + 元数据 + 部署信息 + 文件清单。 */
 import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { ElMessage } from 'element-plus'
+import { ImageOff, RefreshCw } from 'lucide-vue-next'
 import { apiCreatePlan, apiModDetail, apiRefreshMeta, localPreview } from '@/api'
-import type { ModDetail } from '@/api/types'
 import { ApiRequestError } from '@/api/client'
+import type { ModDetail } from '@/api/types'
 import { useSystemStore } from '@/stores/system'
+import { toast } from '@/composables/useToast'
 import {
-  ACTION_ZH, LOAD_SOURCE_ZH, applyTag, formatBytes, formatTime, inventoryTag,
+  ACTION_ZH, LOAD_SOURCE_ZH, applyTone, formatBytes, formatTime, inventoryTone,
 } from '@/utils/format'
+import Badge from '@/components/ui/Badge.vue'
+import Button from '@/components/ui/Button.vue'
+import EmptyState from '@/components/ui/EmptyState.vue'
+import Panel from '@/components/ui/Panel.vue'
+import Skeleton from '@/components/ui/Skeleton.vue'
+import SpecGrid, { type SpecItem } from '@/components/ui/SpecGrid.vue'
+
+type Action = 'enable' | 'disable' | 'delete'
 
 const route = useRoute()
 const router = useRouter()
@@ -19,197 +27,264 @@ const wid = computed(() => String(route.params.wid || ''))
 const mod = ref<ModDetail | null>(null)
 const loading = ref(false)
 const acting = ref(false)
+const failed = ref(false)
+
+const title = computed(() => {
+  const m = mod.value
+  if (!m) return ''
+  return m.title || m.folder_name || m.workshop_id
+})
+const workshopUrl = computed(
+  () => `https://steamcommunity.com/sharedfiles/filedetails/?id=${wid.value}`,
+)
+const hasPreview = computed(() => !!mod.value?.preview_url && !failed.value)
 
 async function load() {
   loading.value = true
   try {
     mod.value = await apiModDetail(wid.value)
   } catch (e) {
-    ElMessage.error(e instanceof ApiRequestError ? e.message : '加载 Mod 详情失败')
+    toast.error(e instanceof ApiRequestError ? e.message : '加载 Mod 详情失败')
   } finally {
     loading.value = false
   }
 }
 
+function requireWritable(): boolean {
+  if (system.readOnly) {
+    toast.warning('当前为只读模式,无法执行该操作')
+    return false
+  }
+  return true
+}
+
 async function refreshMeta() {
-  if (system.readOnly) { ElMessage.warning('当前为只读模式,无法执行该操作'); return }
+  if (!requireWritable()) return
   acting.value = true
   try {
     await apiRefreshMeta([wid.value])
-    ElMessage.success('元数据刷新任务已创建')
+    toast.success('元数据刷新任务已创建')
   } catch (e) {
-    ElMessage.error(e instanceof ApiRequestError ? e.message : '创建刷新任务失败')
+    toast.error(e instanceof ApiRequestError ? e.message : '创建刷新任务失败')
   } finally {
     acting.value = false
   }
 }
 
-async function quickPlan(action: 'enable' | 'disable' | 'delete') {
-  if (system.readOnly) { ElMessage.warning('当前为只读模式,无法执行该操作'); return }
+async function quickPlan(action: Action) {
+  if (!requireWritable()) return
   acting.value = true
   try {
     const plan = await apiCreatePlan([{ action, workshop_id: wid.value }])
-    ElMessage.success(`已创建单项${ACTION_ZH[action]}计划,请确认预览`)
+    toast.success(`已创建单项${ACTION_ZH[action]}计划,请确认预览`)
     router.push({ name: 'plan-detail', params: { id: plan.id } })
   } catch (e) {
-    ElMessage.error(e instanceof ApiRequestError ? e.message : '创建计划失败')
+    toast.error(e instanceof ApiRequestError ? e.message : '创建计划失败')
   } finally {
     acting.value = false
   }
 }
+
+const stateItems = computed<SpecItem[]>(() => {
+  const m = mod.value
+  if (!m) return []
+  return [
+    { label: '清单', badge: m.inventory_zh || m.inventory_state, tone: inventoryTone(m.inventory_state) },
+    { label: '期望', value: m.desired_zh || m.desired_state },
+    { label: '应用', badge: m.apply_zh || m.apply_state, tone: applyTone(m.apply_state) },
+    { label: '运行时', value: m.runtime_zh || m.runtime_state },
+    { label: '需重启', badge: m.requires_restart ? '是' : '否', tone: m.requires_restart ? 'warning' : 'neutral' },
+  ]
+})
+
+const loadItems = computed<SpecItem[]>(() => {
+  const m = mod.value
+  if (!m) return []
+  return [
+    {
+      label: '加载来源',
+      value: LOAD_SOURCE_ZH[m.load_source] || m.load_source,
+      note: m.load_sources.length > 1 ? `共 ${m.load_sources.length} 处:${m.load_sources.join('、')}` : undefined,
+    },
+    { label: '缓存大小', value: formatBytes(m.size_bytes), note: `${m.file_count} 个文件` },
+    { label: '缓存路径', value: m.cache_path || '-', mono: true },
+    { label: '最近扫描', value: formatTime(m.last_scan_at) },
+    { label: 'Workshop 更新', value: formatTime(m.time_updated) },
+    { label: '远端大小', value: m.remote_file_size == null ? '未知' : formatBytes(m.remote_file_size) },
+  ]
+})
+
+const deployItems = computed<SpecItem[]>(() => {
+  const m = mod.value
+  if (!m) return []
+  return [
+    { label: '部署版本', value: `v${m.deploy?.version ?? '-'}` },
+    { label: '部署时间', value: formatTime(m.deploy?.deployed_at) },
+    { label: '部署路径', value: m.deploy?.path || '-', mono: true },
+    {
+      label: '部署大小',
+      value: m.deploy?.size ? formatBytes(m.deploy.size) : '-',
+      badge: m.deploy?.source_changed ? '缓存已有更新' : undefined,
+      tone: 'warning',
+    },
+  ]
+})
+
+const metaItems = computed<SpecItem[]>(() => {
+  const m = mod.value
+  if (!m) return []
+  return [
+    {
+      label: '抓取状态',
+      value: m.metadata_state || '未抓取',
+      note: m.metadata_error || undefined,
+    },
+    { label: '抓取时间', value: formatTime(m.metadata_fetched_at) },
+    { label: '来源', value: m.metadata_source || '-' },
+    { label: '发布时间', value: formatTime(m.time_published) },
+  ]
+})
 
 onMounted(load)
 </script>
 
 <template>
-  <div v-loading="loading" class="page-card">
-    <template v-if="mod">
-      <div class="detail-head">
-        <el-image class="detail-thumb" :src="mod.preview_url ? localPreview(mod.workshop_id) : ''"
-                  fit="cover">
-          <template #error><div class="detail-thumb-err">无预览图</div></template>
-        </el-image>
-        <div class="detail-head-text">
-          <h2 class="detail-title">{{ mod.title || mod.folder_name || mod.workshop_id }}</h2>
-          <div class="mono muted small">
-            Workshop ID {{ mod.workshop_id }} ·
-            <a :href="'https://steamcommunity.com/sharedfiles/filedetails/?id=' + mod.workshop_id"
-               target="_blank" rel="noopener">打开创意工坊页面</a>
-            <template v-if="mod.folder_name"> · {{ mod.folder_name }}</template>
-          </div>
-          <div class="detail-author muted small">
-            作者:{{ mod.author_name || '未知' }}
-            <template v-if="mod.author_steamid">({{ mod.author_steamid }})</template>
-          </div>
-          <div class="detail-tags">
-            <el-tag v-for="t in mod.tags" :key="t" size="small" effect="plain">{{ t }}</el-tag>
-            <el-tag v-if="mod.protected" type="danger" size="small" effect="dark">
-              受保护:{{ mod.protected_reason }}
-            </el-tag>
+  <div class="space-y-4">
+    <div v-if="loading && !mod" class="space-y-4">
+      <div class="rounded-xl border border-line bg-surface p-4">
+        <div class="flex flex-col gap-4 sm:flex-row">
+          <Skeleton class="aspect-video w-full rounded-lg sm:w-[280px]" />
+          <div class="flex-1 space-y-2.5">
+            <Skeleton class="h-5 w-2/3" />
+            <Skeleton class="h-3.5 w-1/2" />
+            <Skeleton class="h-6 w-40" />
+            <Skeleton class="h-8 w-64" />
           </div>
         </div>
-        <div class="detail-actions">
-          <el-button size="small" :loading="acting" :disabled="system.readOnly"
-                     @click="refreshMeta">刷新元数据</el-button>
-          <el-button size="small" type="success" plain :loading="acting"
-                     :disabled="system.readOnly" @click="quickPlan('enable')">启用</el-button>
-          <el-button size="small" type="warning" plain :loading="acting"
-                     :disabled="system.readOnly" @click="quickPlan('disable')">禁用</el-button>
-          <el-button size="small" type="danger" plain :loading="acting"
-                     :disabled="system.readOnly || mod.protected" @click="quickPlan('delete')">
-            删除
-          </el-button>
+      </div>
+      <Skeleton class="h-24 w-full rounded-xl" />
+      <Skeleton class="h-40 w-full rounded-xl" />
+    </div>
+
+    <EmptyState v-else-if="!mod" title="未找到该 Mod" description="该条目可能已被移除,或 Workshop ID 不正确。" />
+
+    <template v-else>
+      <div class="rounded-xl border border-line bg-surface">
+        <div class="flex flex-col gap-4 p-4 sm:flex-row">
+          <div class="w-full shrink-0 sm:w-[280px]">
+            <div class="aspect-video overflow-hidden rounded-lg bg-surface-muted">
+              <img
+                v-if="hasPreview"
+                :src="localPreview(mod.workshop_id)"
+                :alt="title"
+                class="size-full object-cover"
+                @error="failed = true"
+              >
+              <div v-else class="flex size-full flex-col items-center justify-center gap-1.5 text-ink-4">
+                <ImageOff class="size-5" aria-hidden="true" />
+                <span class="text-[11px]">无预览图</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="min-w-0 flex-1">
+            <h2 class="text-[17px] font-semibold leading-6 tracking-tight text-ink">{{ title }}</h2>
+            <p class="mono tiny muted mt-1.5">
+              Workshop ID {{ mod.workshop_id }} ·
+              <a :href="workshopUrl" target="_blank" rel="noopener" class="text-accent hover:underline">打开创意工坊页面</a>
+              <template v-if="mod.folder_name"> · {{ mod.folder_name }}</template>
+            </p>
+            <p class="small muted mt-1">
+              作者:{{ mod.author_name || '未知' }}
+              <template v-if="mod.author_steamid">({{ mod.author_steamid }})</template>
+            </p>
+
+            <div class="mt-2.5 flex flex-wrap gap-1.5">
+              <Badge v-for="t in mod.tags" :key="t" variant="outline">{{ t }}</Badge>
+              <Badge v-if="mod.protected" variant="danger">受保护:{{ mod.protected_reason }}</Badge>
+            </div>
+
+            <div class="mt-3.5 flex flex-wrap gap-2">
+              <Button size="sm" :loading="acting" :disabled="system.readOnly" @click="refreshMeta">
+                <RefreshCw class="size-3.5" aria-hidden="true" />
+                刷新元数据
+              </Button>
+              <Button
+                size="sm"
+                variant="secondary"
+                class="text-ok hover:bg-ok-soft hover:text-ok"
+                :loading="acting"
+                :disabled="system.readOnly || mod.desired_state === 'enabled'"
+                @click="quickPlan('enable')"
+              >
+                启用
+              </Button>
+              <Button
+                size="sm"
+                variant="secondary"
+                class="text-warn hover:bg-warn-soft hover:text-warn"
+                :loading="acting"
+                :disabled="system.readOnly || mod.desired_state === 'disabled'"
+                @click="quickPlan('disable')"
+              >
+                禁用
+              </Button>
+              <Button
+                size="sm"
+                variant="danger-outline"
+                :loading="acting"
+                :disabled="system.readOnly || mod.protected"
+                :title="mod.protected ? mod.protected_reason : ''"
+                @click="quickPlan('delete')"
+              >
+                删除
+              </Button>
+            </div>
+          </div>
         </div>
       </div>
 
-      <el-descriptions title="五维状态" :column="5" border size="small" class="detail-section">
-        <el-descriptions-item label="清单">
-          <el-tag :type="inventoryTag(mod.inventory_state)" size="small">
-            {{ mod.inventory_zh || mod.inventory_state }}
-          </el-tag>
-        </el-descriptions-item>
-        <el-descriptions-item label="期望">{{ mod.desired_zh || mod.desired_state }}</el-descriptions-item>
-        <el-descriptions-item label="应用">
-          <el-tag :type="applyTag(mod.apply_state)" size="small">
-            {{ mod.apply_zh || mod.apply_state }}
-          </el-tag>
-        </el-descriptions-item>
-        <el-descriptions-item label="运行时">{{ mod.runtime_zh || mod.runtime_state }}</el-descriptions-item>
-        <el-descriptions-item label="需重启">
-          <el-tag :type="mod.requires_restart ? 'warning' : 'info'" size="small">
-            {{ mod.requires_restart ? '是' : '否' }}
-          </el-tag>
-        </el-descriptions-item>
-      </el-descriptions>
+      <Panel title="五维状态">
+        <SpecGrid :items="stateItems" :cols="5" />
+      </Panel>
 
-      <el-descriptions title="加载与文件" :column="2" border size="small" class="detail-section">
-        <el-descriptions-item label="加载来源">
-          {{ LOAD_SOURCE_ZH[mod.load_source] || mod.load_source }}
-          <span v-if="mod.load_sources.length > 1" class="muted small">
-            (共 {{ mod.load_sources.length }} 处:{{ mod.load_sources.join('、') }})
-          </span>
-        </el-descriptions-item>
-        <el-descriptions-item label="缓存大小">
-          <span class="mono">{{ formatBytes(mod.size_bytes) }}</span>
-          <span class="muted small">({{ mod.file_count }} 个文件)</span>
-        </el-descriptions-item>
-        <el-descriptions-item label="缓存路径">
-          <span class="mono small">{{ mod.cache_path || '-' }}</span>
-        </el-descriptions-item>
-        <el-descriptions-item label="最近扫描">{{ formatTime(mod.last_scan_at) }}</el-descriptions-item>
-        <el-descriptions-item label="Workshop 更新">{{ formatTime(mod.time_updated) }}</el-descriptions-item>
-        <el-descriptions-item label="远端大小">
-          {{ mod.remote_file_size == null ? '未知' : formatBytes(mod.remote_file_size) }}
-        </el-descriptions-item>
-      </el-descriptions>
+      <Panel title="加载与文件">
+        <SpecGrid :items="loadItems" :cols="2" />
+      </Panel>
 
-      <el-descriptions title="部署信息(local_managed)" :column="2" border size="small"
-                       class="detail-section">
-        <el-descriptions-item label="部署版本">v{{ mod.deploy?.version ?? '-' }}</el-descriptions-item>
-        <el-descriptions-item label="部署时间">{{ formatTime(mod.deploy?.deployed_at) }}</el-descriptions-item>
-        <el-descriptions-item label="部署路径">
-          <span class="mono small">{{ mod.deploy?.path || '-' }}</span>
-        </el-descriptions-item>
-        <el-descriptions-item label="部署大小">
-          {{ mod.deploy?.size ? formatBytes(mod.deploy.size) : '-' }}
-          <el-tag v-if="mod.deploy?.source_changed" type="warning" size="small">缓存已有更新</el-tag>
-        </el-descriptions-item>
-      </el-descriptions>
+      <Panel title="部署信息(local_managed)">
+        <SpecGrid :items="deployItems" :cols="2" />
+      </Panel>
 
-      <el-descriptions title="元数据" :column="2" border size="small" class="detail-section">
-        <el-descriptions-item label="抓取状态">
-          {{ mod.metadata_state || '未抓取' }}
-          <span v-if="mod.metadata_error" class="detail-err">{{ mod.metadata_error }}</span>
-        </el-descriptions-item>
-        <el-descriptions-item label="抓取时间">{{ formatTime(mod.metadata_fetched_at) }}</el-descriptions-item>
-        <el-descriptions-item label="来源">{{ mod.metadata_source || '-' }}</el-descriptions-item>
-        <el-descriptions-item label="发布时间">{{ formatTime(mod.time_published) }}</el-descriptions-item>
-      </el-descriptions>
+      <Panel title="元数据">
+        <SpecGrid :items="metaItems" :cols="2" />
+      </Panel>
 
-      <div class="detail-section">
-        <h4 class="detail-sub">简介</h4>
-        <div class="detail-desc">{{ mod.description || '(无简介)' }}</div>
-      </div>
+      <Panel title="简介">
+        <p class="whitespace-pre-wrap text-[13px] leading-6 text-ink-2">{{ mod.description || '(无简介)' }}</p>
+      </Panel>
 
-      <div class="detail-section">
-        <h4 class="detail-sub">文件清单({{ mod.files.length }})</h4>
-        <el-table :data="mod.files" size="small" max-height="320">
-          <el-table-column prop="rel_path" label="相对路径" min-width="280">
-            <template #default="{ row }"><span class="mono">{{ row.rel_path }}</span></template>
-          </el-table-column>
-          <el-table-column label="大小" width="110">
-            <template #default="{ row }">
-              <span class="mono">{{ formatBytes(row.size) }}</span>
-            </template>
-          </el-table-column>
-          <el-table-column prop="note" label="备注" width="180" />
-        </el-table>
-      </div>
+      <Panel :title="`文件清单(${mod.files.length})`" :padded="false">
+        <div v-if="mod.files.length" class="max-h-[360px] overflow-auto">
+          <table class="tbl">
+            <thead>
+              <tr>
+                <th>相对路径</th>
+                <th style="width: 120px">大小</th>
+                <th style="width: 200px">备注</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="f in mod.files" :key="f.rel_path">
+                <td class="mono break-all">{{ f.rel_path }}</td>
+                <td class="mono num">{{ formatBytes(f.size) }}</td>
+                <td>{{ f.note || '-' }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <EmptyState v-else title="没有文件记录" />
+      </Panel>
     </template>
-    <el-empty v-else-if="!loading" description="未找到该 Mod" />
   </div>
 </template>
-
-<style scoped>
-.detail-head { display: flex; gap: 16px; align-items: flex-start; }
-.detail-thumb {
-  width: 184px; height: 104px; border-radius: 6px; background: #f0f2f5; flex: none;
-}
-.detail-thumb-err {
-  width: 184px; height: 104px; display: flex; align-items: center; justify-content: center;
-  color: #c0c4cc; font-size: 12px;
-}
-.detail-head-text { flex: 1; min-width: 0; }
-.detail-title { margin: 0 0 4px; font-size: 18px; }
-.detail-author { margin-top: 2px; }
-.detail-tags { margin-top: 8px; display: flex; gap: 6px; flex-wrap: wrap; }
-.detail-actions { display: flex; flex-direction: column; gap: 8px; align-items: stretch; }
-.detail-section { margin-top: 18px; }
-.detail-sub { margin: 0 0 8px; font-size: 14px; color: #303133; }
-.detail-desc {
-  white-space: pre-wrap; font-size: 13px; color: #606266; line-height: 1.7;
-  max-height: 240px; overflow: auto; background: #fafafa; padding: 10px; border-radius: 4px;
-}
-.detail-err { color: var(--el-color-danger); margin-left: 8px; font-size: 12px; }
-.small { font-size: 12px; }
-</style>

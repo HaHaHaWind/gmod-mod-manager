@@ -1,7 +1,11 @@
 <script setup lang="ts">
-// 根组件:仅承载路由出口(布局在 Layout.vue)。
+// 根组件:路由出口 + 全局通知与确认宿主。
+import ConfirmHost from '@/components/ui/ConfirmHost.vue'
+import Toaster from '@/components/ui/Toaster.vue'
 </script>
 
 <template>
-  <router-view />
+  <RouterView />
+  <Toaster />
+  <ConfirmHost />
 </template>

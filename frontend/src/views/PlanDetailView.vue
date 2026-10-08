@@ -1,15 +1,24 @@
 <script setup lang="ts">
 /** 计划详情:预览 diff + 阻塞项 + 提交/应用/取消/重试 + 应用结果。 */
-import { computed, onMounted, onUnmounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { ElMessage, ElMessageBox } from 'element-plus'
+import { ArrowLeft, Play, RotateCw, ShieldAlert, TriangleAlert } from 'lucide-vue-next'
 import { apiPlanApply, apiPlanCancel, apiPlanDetail, apiPlanRetry, apiPlanSubmit } from '@/api'
 import type { PlanView } from '@/api/types'
 import { ApiRequestError } from '@/api/client'
 import { useSystemStore } from '@/stores/system'
+import { confirmDialog } from '@/composables/useConfirm'
+import { toast } from '@/composables/useToast'
+import { usePolling } from '@/composables/usePolling'
 import {
-  ACTION_ZH, ITEM_STATUS_ZH, PLAN_STATUS_ZH, itemStatusTag, formatTime, planStatusTag,
+  ACTION_ZH, ITEM_STATUS_ZH, PLAN_STATUS_ZH,
+  formatTime, itemStatusTone, planStatusTone, type Tone,
 } from '@/utils/format'
+import Badge from '@/components/ui/Badge.vue'
+import Button from '@/components/ui/Button.vue'
+import EmptyState from '@/components/ui/EmptyState.vue'
+import Panel from '@/components/ui/Panel.vue'
+import Skeleton from '@/components/ui/Skeleton.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -19,201 +28,299 @@ const planId = computed(() => String(route.params.id || ''))
 const plan = ref<PlanView | null>(null)
 const loading = ref(false)
 const acting = ref(false)
-let timer: number | undefined
+
+const status = computed(() => plan.value?.status ?? '')
+const blockers = computed(() => plan.value?.diff?.blockers ?? [])
+const perItems = computed(() => plan.value?.diff?.per_item ?? [])
+const items = computed(() => plan.value?.items ?? [])
+const summaryEntries = computed(() =>
+  Object.entries(plan.value?.diff?.summary ?? {}).filter(([, n]) => Number(n) > 0),
+)
+
+const canSubmit = computed(() => status.value === 'draft')
+const canApply = computed(() => status.value === 'staged')
+const canCancel = computed(() => ['draft', 'staged'].includes(status.value))
+const canRetry = computed(() => ['failed', 'recovery_required'].includes(status.value))
+
+// 稳定态无需轮询:草稿/已提交等待人工操作,已应用/已取消为终态。
+const STABLE = ['draft', 'staged', 'applied', 'cancelled']
+
+function actionTone(act: string): Tone {
+  if (act === 'delete') return 'danger'
+  if (act === 'disable') return 'warning'
+  if (act === 'enable') return 'success'
+  return 'neutral'
+}
 
 async function load(silent = false) {
   if (!silent) loading.value = true
   try {
     plan.value = await apiPlanDetail(planId.value)
   } catch (e) {
-    if (!silent) ElMessage.error(e instanceof ApiRequestError ? e.message : '加载计划失败')
+    if (!silent) toast.error(e instanceof ApiRequestError ? e.message : '加载计划失败')
   } finally {
     if (!silent) loading.value = false
   }
 }
 
+usePolling(() => {
+  if (STABLE.includes(status.value)) return
+  return load(true)
+}, 5000, { immediate: false })
+
 async function runAction(fn: () => Promise<unknown>, okMsg: string) {
   acting.value = true
   try {
     await fn()
-    ElMessage.success(okMsg)
+    toast.success(okMsg)
     await load(true)
     await system.refresh()
   } catch (e) {
-    ElMessage.error(e instanceof ApiRequestError ? e.message : '操作失败')
+    toast.error(e instanceof ApiRequestError ? e.message : '操作失败')
   } finally {
     acting.value = false
   }
 }
 
-function confirmThen(message: string, fn: () => Promise<unknown>, okMsg: string) {
-  ElMessageBox.confirm(message, '操作确认', {
-    confirmButtonText: '确认', cancelButtonText: '取消', type: 'warning',
-  }).then(() => runAction(fn, okMsg)).catch(() => undefined)
+async function confirmThen(
+  title: string, description: string, fn: () => Promise<unknown>, okMsg: string, danger = false,
+) {
+  if (system.readOnly) {
+    toast.warning('当前为只读模式,无法执行该操作')
+    return
+  }
+  const ok = await confirmDialog({ title, description, confirmText: '确认', danger })
+  if (!ok) return
+  await runAction(fn, okMsg)
 }
 
-const submitPlan = () =>
-  confirmThen('提交后期望状态将立即更新(服务器尚未生效),确认提交?', () => apiPlanSubmit(planId.value), '计划已提交')
-const applyPlan = () =>
-  confirmThen('将对服务器配置执行变更(不会自动重启服务器),确认应用?', () => apiPlanApply(planId.value), '应用任务已启动')
-const cancelPlan = () =>
-  confirmThen('取消后该计划不可再用,确认取消?', () => apiPlanCancel(planId.value), '计划已取消')
-const retryPlan = () => runAction(() => apiPlanRetry(planId.value), '重试任务已启动')
+const submitPlan = () => confirmThen(
+  '提交计划', '提交后期望状态将立即更新(服务器尚未生效),确认提交?',
+  () => apiPlanSubmit(planId.value), '计划已提交',
+)
+const applyPlan = () => confirmThen(
+  '应用到服务器', '将对服务器配置执行变更(不会自动重启服务器),确认应用?',
+  () => apiPlanApply(planId.value), '应用任务已启动',
+)
+const cancelPlan = () => confirmThen(
+  '取消计划', '取消后该计划不可再用,确认取消?',
+  () => apiPlanCancel(planId.value), '计划已取消', true,
+)
+async function retryPlan() {
+  if (system.readOnly) {
+    toast.warning('当前为只读模式,无法执行该操作')
+    return
+  }
+  await runAction(() => apiPlanRetry(planId.value), '重试任务已启动')
+}
 
-const status = computed(() => plan.value?.status ?? '')
-const canSubmit = computed(() => status.value === 'draft')
-const canApply = computed(() => status.value === 'staged')
-const canCancel = computed(() => ['draft', 'staged'].includes(status.value))
-const canRetry = computed(() => ['failed', 'recovery_required'].includes(status.value))
-
-const blockers = computed(() => plan.value?.diff?.blockers ?? [])
-const perItems = computed(() => plan.value?.diff?.per_item ?? [])
-const items = computed(() => plan.value?.items ?? [])
-const summary = computed(() => plan.value?.diff?.summary ?? {})
-
-onMounted(() => {
-  load()
-  timer = window.setInterval(() => {
-    if (['draft', 'staged'].includes(status.value)) return
-    load(true)
-  }, 5000)
-})
-onUnmounted(() => { if (timer) window.clearInterval(timer) })
+onMounted(() => load())
 </script>
 
 <template>
-  <div v-loading="loading" class="page-card">
-    <template v-if="plan">
-      <div class="plan-head">
-        <div>
-          <div class="mono muted small">{{ plan.id }}</div>
-          <div class="plan-head-status">
-            <el-tag :type="planStatusTag(plan.status)">
-              {{ PLAN_STATUS_ZH[plan.status] || plan.status }}
-            </el-tag>
-            <span class="muted">创建人 {{ plan.created_by }}</span>
-            <span class="muted">创建于 {{ formatTime(plan.created_at) }}</span>
-            <span v-if="plan.expires_at" class="muted">过期于 {{ formatTime(plan.expires_at) }}</span>
-            <span v-if="plan.applied_at" class="muted">应用于 {{ formatTime(plan.applied_at) }}</span>
+  <div class="space-y-4">
+    <div v-if="loading && !plan" class="space-y-3">
+      <Skeleton class="h-24 w-full" />
+      <Skeleton class="h-44 w-full" />
+    </div>
+
+    <EmptyState
+      v-else-if="!plan"
+      title="未找到该计划"
+      description="计划可能已过期或被清理。"
+    >
+      <template #action>
+        <Button variant="secondary" @click="router.push({ name: 'plans' })">返回列表</Button>
+      </template>
+    </EmptyState>
+
+    <template v-else>
+      <div class="rounded-xl border border-line bg-surface">
+        <div class="flex flex-col gap-4 p-4 lg:flex-row lg:items-start lg:justify-between">
+          <div class="min-w-0">
+            <div class="flex items-center gap-2">
+              <Button
+                size="icon-sm"
+                variant="ghost"
+                aria-label="返回列表"
+                @click="router.push({ name: 'plans' })"
+              >
+                <ArrowLeft class="size-4" aria-hidden="true" />
+              </Button>
+              <Badge :variant="planStatusTone(plan.status)">
+                {{ PLAN_STATUS_ZH[plan.status] || plan.status }}
+              </Badge>
+              <span class="mono tiny muted truncate" :title="plan.id">{{ plan.id }}</span>
+            </div>
+            <div class="mt-2.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[12px] text-ink-3">
+              <span>创建人 {{ plan.created_by || '-' }}</span>
+              <span>创建于 {{ formatTime(plan.created_at) }}</span>
+              <span v-if="plan.expires_at">过期于 {{ formatTime(plan.expires_at) }}</span>
+              <span v-if="plan.applied_at">应用于 {{ formatTime(plan.applied_at) }}</span>
+            </div>
+          </div>
+          <div class="flex flex-wrap items-center gap-2 lg:justify-end">
+            <Button
+              v-if="canSubmit"
+              variant="primary"
+              :loading="acting"
+              :disabled="system.readOnly"
+              @click="submitPlan"
+            >
+              提交计划
+            </Button>
+            <Button
+              v-if="canApply"
+              variant="success"
+              :loading="acting"
+              :disabled="system.readOnly"
+              @click="applyPlan"
+            >
+              <Play class="size-3.5" aria-hidden="true" />
+              应用到服务器
+            </Button>
+            <Button
+              v-if="canRetry"
+              variant="secondary"
+              class="text-warn hover:bg-warn-soft hover:text-warn"
+              :loading="acting"
+              :disabled="system.readOnly"
+              @click="retryPlan"
+            >
+              <RotateCw class="size-3.5" aria-hidden="true" />
+              重试失败项
+            </Button>
+            <Button
+              v-if="canCancel"
+              variant="danger-outline"
+              :loading="acting"
+              :disabled="system.readOnly"
+              @click="cancelPlan"
+            >
+              取消计划
+            </Button>
           </div>
         </div>
-        <div class="plan-actions">
-          <el-button v-if="canSubmit" type="primary" :loading="acting" @click="submitPlan">
-            提交计划
-          </el-button>
-          <el-button v-if="canApply" type="success" :loading="acting" @click="applyPlan">
-            应用到服务器
-          </el-button>
-          <el-button v-if="canRetry" type="warning" plain :loading="acting" @click="retryPlan">
-            重试失败项
-          </el-button>
-          <el-button v-if="canCancel" :loading="acting" @click="cancelPlan">取消计划</el-button>
-          <el-button link @click="router.push({ name: 'plans' })">返回列表</el-button>
+      </div>
+
+      <div
+        v-if="plan.error"
+        class="flex items-start gap-2 rounded-lg border border-danger/25 bg-danger-soft px-3 py-2.5"
+      >
+        <TriangleAlert class="mt-0.5 size-4 shrink-0 text-danger" aria-hidden="true" />
+        <p class="text-[12.5px] leading-5 text-danger">{{ plan.error }}</p>
+      </div>
+
+      <Panel title="变更摘要">
+        <div class="flex flex-wrap items-center gap-2">
+          <Badge v-for="[act, n] in summaryEntries" :key="act" :variant="actionTone(act)">
+            {{ ACTION_ZH[act] || act }} × {{ n }}
+          </Badge>
+          <span v-if="!summaryEntries.length" class="small muted">无变更项</span>
+          <span class="spacer" />
+          <span class="small muted num">
+            模式 {{ plan.diff?.mode || '-' }} · 策略 {{ plan.diff?.strategy || '-' }} ·
+            基线版本 r{{ plan.base_revision }}
+          </span>
         </div>
-      </div>
+      </Panel>
 
-      <el-alert v-if="plan.error" type="error" show-icon :closable="false" class="plan-err"
-                :title="plan.error" />
+      <Panel
+        v-if="blockers.length"
+        :title="`阻塞项(${blockers.length})`"
+        description="必须先解决以下问题才能提交"
+      >
+        <ul class="space-y-2">
+          <li
+            v-for="(b, i) in blockers"
+            :key="i"
+            class="flex items-start gap-2 rounded-lg border border-danger/25 bg-danger-soft px-3 py-2"
+          >
+            <ShieldAlert class="mt-0.5 size-4 shrink-0 text-danger" aria-hidden="true" />
+            <p class="text-[12.5px] leading-5 text-danger">
+              <span class="mono">{{ b.workshop_id }}</span>
+              ({{ ACTION_ZH[b.action] || b.action }}):{{ b.reason }}
+            </p>
+          </li>
+        </ul>
+      </Panel>
 
-      <div class="plan-summary">
-        <el-tag v-for="(n, act) in summary" :key="act" effect="plain" class="sum-tag"
-                :type="act === 'delete' ? 'danger' : act === 'disable' ? 'warning' : 'success'">
-          {{ ACTION_ZH[act] || act }} × {{ n }}
-        </el-tag>
-        <span class="muted small">
-          模式:{{ plan.diff?.mode }} / 策略:{{ plan.diff?.strategy || '-' }} /
-          基线版本 r{{ plan.base_revision }}
-        </span>
-      </div>
+      <Panel :title="`变更预览(${perItems.length})`" :padded="false">
+        <div v-if="perItems.length" class="overflow-x-auto">
+          <table class="tbl">
+            <thead>
+              <tr>
+                <th>Mod</th>
+                <th style="width: 72px">动作</th>
+                <th style="width: 320px">变更</th>
+                <th style="width: 260px">警告 / 阻塞</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="row in perItems" :key="`${row.workshop_id}-${row.action}`">
+                <td>
+                  <p class="font-medium text-ink">{{ row.title || '-' }}</p>
+                  <p class="mono tiny muted">ID {{ row.workshop_id }}</p>
+                </td>
+                <td>{{ ACTION_ZH[row.action] || row.action }}</td>
+                <td class="text-[12.5px]">
+                  <span v-if="row.from" class="muted">
+                    清单 {{ row.from.inventory_state }} / 期望 {{ row.from.desired_state }} →
+                  </span>
+                  <span v-if="row.to">
+                    清单 {{ row.to.inventory_state ?? '-' }} / 期望 {{ row.to.desired_state }}
+                  </span>
+                </td>
+                <td>
+                  <div v-if="row.blocked" class="flex items-center gap-1.5">
+                    <Badge variant="danger">已阻塞</Badge>
+                    <span class="text-[12px] text-danger">{{ row.block_reason }}</span>
+                  </div>
+                  <div v-else-if="row.warnings.length" class="flex flex-wrap gap-1">
+                    <Badge v-for="(w, i) in row.warnings" :key="i" variant="warning">{{ w }}</Badge>
+                  </div>
+                  <span v-else class="muted">-</span>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <EmptyState v-else title="没有预览项" />
+      </Panel>
 
-      <template v-if="blockers.length">
-        <h4 class="plan-sub">阻塞项(必须先解决)</h4>
-        <el-alert v-for="(b, i) in blockers" :key="i" type="error" show-icon :closable="false"
-                  class="blocker"
-                  :title="`${b.workshop_id}(${ACTION_ZH[b.action] || b.action}):${b.reason}`" />
-      </template>
-
-      <h4 class="plan-sub">预览({{ perItems.length }} 项)</h4>
-      <el-table :data="perItems" size="small">
-        <el-table-column label="Mod" min-width="200">
-          <template #default="{ row }">
-            {{ row.title || '-' }}
-            <div class="mono muted small">ID {{ row.workshop_id }}</div>
-          </template>
-        </el-table-column>
-        <el-table-column label="动作" width="80">
-          <template #default="{ row }">{{ ACTION_ZH[row.action] || row.action }}</template>
-        </el-table-column>
-        <el-table-column label="变更" min-width="200">
-          <template #default="{ row }">
-            <span v-if="row.from" class="muted small">
-              清单 {{ row.from.inventory_state }} / 期望 {{ row.from.desired_state }} →
-            </span>
-            <span v-if="row.to" class="small">
-              清单 {{ row.to.inventory_state ?? '-' }} / 期望 {{ row.to.desired_state }}
-            </span>
-          </template>
-        </el-table-column>
-        <el-table-column label="警告 / 阻塞" min-width="200">
-          <template #default="{ row }">
-            <template v-if="row.blocked">
-              <el-tag type="danger" size="small">已阻塞</el-tag>
-              <span class="block-reason">{{ row.block_reason }}</span>
-            </template>
-            <template v-else-if="row.warnings.length">
-              <el-tag v-for="(w, i) in row.warnings" :key="i" type="warning" size="small"
-                      class="warn-tag">{{ w }}</el-tag>
-            </template>
-            <span v-else class="muted small">-</span>
-          </template>
-        </el-table-column>
-      </el-table>
-
-      <template v-if="items.length">
-        <h4 class="plan-sub">执行结果({{ items.length }} 项)</h4>
-        <el-table :data="items" size="small">
-          <el-table-column label="Workshop ID" width="140">
-            <template #default="{ row }">
-              <router-link class="mono item-link"
-                           :to="{ name: 'mod-detail', params: { wid: row.workshop_id } }">
-                {{ row.workshop_id }}
-              </router-link>
-            </template>
-          </el-table-column>
-          <el-table-column label="动作" width="80">
-            <template #default="{ row }">{{ ACTION_ZH[row.action] || row.action }}</template>
-          </el-table-column>
-          <el-table-column label="状态" width="100">
-            <template #default="{ row }">
-              <el-tag :type="itemStatusTag(row.status)" size="small">
-                {{ ITEM_STATUS_ZH[row.status] || row.status }}
-              </el-tag>
-            </template>
-          </el-table-column>
-          <el-table-column label="错误" min-width="220">
-            <template #default="{ row }">
-              <span class="item-err">{{ row.error || '-' }}</span>
-            </template>
-          </el-table-column>
-        </el-table>
-      </template>
+      <Panel v-if="items.length" :title="`执行结果(${items.length})`" :padded="false">
+        <div class="overflow-x-auto">
+          <table class="tbl">
+            <thead>
+              <tr>
+                <th style="width: 150px">Workshop ID</th>
+                <th style="width: 72px">动作</th>
+                <th style="width: 96px">状态</th>
+                <th>错误</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="row in items" :key="row.id">
+                <td>
+                  <router-link
+                    class="mono text-[12.5px] text-accent hover:underline"
+                    :to="{ name: 'mod-detail', params: { wid: row.workshop_id } }"
+                  >
+                    {{ row.workshop_id }}
+                  </router-link>
+                </td>
+                <td>{{ ACTION_ZH[row.action] || row.action }}</td>
+                <td>
+                  <Badge :variant="itemStatusTone(row.status)">
+                    {{ ITEM_STATUS_ZH[row.status] || row.status }}
+                  </Badge>
+                </td>
+                <td class="text-[12.5px] text-danger">{{ row.error || '-' }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </Panel>
     </template>
-    <el-empty v-else-if="!loading" description="未找到该计划" />
   </div>
 </template>
-
-<style scoped>
-.plan-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
-.plan-head-status { margin-top: 8px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
-.plan-actions { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
-.plan-err { margin-top: 12px; }
-.plan-summary { margin-top: 14px; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
-.sum-tag { font-weight: 500; }
-.plan-sub { margin: 18px 0 8px; font-size: 14px; color: #303133; }
-.blocker { margin-bottom: 6px; }
-.block-reason { margin-left: 6px; color: var(--el-color-danger); font-size: 12px; }
-.warn-tag { margin-right: 4px; }
-.item-link { color: var(--el-color-primary); text-decoration: none; }
-.item-err { color: var(--el-color-danger); font-size: 12px; }
-.small { font-size: 12px; }
-</style>

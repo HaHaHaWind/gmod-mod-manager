@@ -1,4 +1,4 @@
-/** 前端通用格式化:字节/时间/状态中文映射/Tag 类型映射。 */
+/** 前端通用格式化:字节/时间/状态中文映射/状态色调映射。 */
 
 export function formatBytes(n: number | null | undefined): string {
   if (n === null || n === undefined || Number.isNaN(n)) return '-'
@@ -58,44 +58,59 @@ export const LOAD_SOURCE_ZH: Record<string, string> = {
   external_addons: '外部本地插件', unknown: '未知',
 }
 
-export type TagType = 'success' | 'warning' | 'danger' | 'info' | 'primary'
+/** 状态色调:直接对应 Badge 组件的 variant。 */
+export type Tone = 'success' | 'warning' | 'danger' | 'accent' | 'neutral'
 
-export function planStatusTag(s: string): TagType {
+export function planStatusTone(s: string): Tone {
   if (s === 'applied') return 'success'
   if (s === 'failed' || s === 'recovery_required') return 'danger'
   if (s === 'applying' || s === 'staged') return 'warning'
-  return 'info'
+  return 'neutral'
 }
 
-export function itemStatusTag(s: string): TagType {
+export function itemStatusTone(s: string): Tone {
   if (s === 'done') return 'success'
   if (s === 'failed') return 'danger'
   if (s === 'pending' || s === 'staged') return 'warning'
-  return 'info'
+  return 'neutral'
 }
 
-export function taskStatusTag(s: string): TagType {
+export function taskStatusTone(s: string): Tone {
   if (s === 'succeeded') return 'success'
-  if (s === 'failed') return 'danger'
+  if (s === 'failed' || s === 'interrupted') return 'danger'
   if (s === 'running' || s === 'queued') return 'warning'
-  return 'info'
+  return 'neutral'
 }
 
-export function trashStatusTag(s: string): TagType {
+export function trashStatusTone(s: string): Tone {
   if (s === 'in_trash') return 'warning'
   if (s === 'restored') return 'success'
-  return 'info'
+  return 'neutral'
 }
 
-export function inventoryTag(s: string): TagType {
+export function inventoryTone(s: string): Tone {
   if (s === 'present') return 'success'
   if (s === 'missing' || s === 'invalid') return 'danger'
-  return 'info'
+  return 'neutral'
 }
 
-export function applyTag(s: string): TagType {
+export function applyTone(s: string): Tone {
   if (s === 'synced') return 'success'
   if (s === 'pending' || s === 'applying') return 'warning'
   if (s === 'failed' || s === 'conflict') return 'danger'
-  return 'info'
+  return 'neutral'
+}
+
+/** 期望状态:启用为强调色,禁用为中性。 */
+export function desiredTone(s: string): Tone {
+  if (s === 'enabled') return 'accent'
+  if (s === 'disabled') return 'neutral'
+  return 'neutral'
+}
+
+export function outcomeTone(o: string): Tone {
+  if (o === 'ok' || o === 'success') return 'success'
+  if (o === 'denied' || o === 'error') return 'danger'
+  if (o === 'blocked') return 'warning'
+  return 'neutral'
 }

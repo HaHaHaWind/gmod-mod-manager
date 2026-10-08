@@ -1,91 +1,155 @@
 <script setup lang="ts">
-/** 登录页:中文表单,错误直接展示后端 message(含限速提示)。 */
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { ElMessage } from 'element-plus'
-import type { FormInstance, FormRules } from 'element-plus'
-import { User, Lock } from '@element-plus/icons-vue'
+import { Lock, Server, ShieldCheck, User } from 'lucide-vue-next'
+import { ApiRequestError } from '@/api/client'
 import { useAuthStore } from '@/stores/auth'
 import { useSystemStore } from '@/stores/system'
-import { ApiRequestError } from '@/api/client'
+import { toast } from '@/composables/useToast'
+import Button from '@/components/ui/Button.vue'
+import Input from '@/components/ui/Input.vue'
 
 const route = useRoute()
 const router = useRouter()
 const auth = useAuthStore()
 const system = useSystemStore()
 
-const formRef = ref<FormInstance>()
 const loading = ref(false)
 const errorMsg = ref('')
-const form = ref({ username: '', password: '' })
+const username = ref('')
+const password = ref('')
 
-const rules: FormRules = {
-  username: [{ required: true, message: '请输入用户名', trigger: 'blur' }],
-  password: [{ required: true, message: '请输入密码', trigger: 'blur' }],
-}
+const canSubmit = computed(() => username.value.trim() !== '' && password.value !== '' && !loading.value)
 
 async function submit() {
-  const valid = await formRef.value?.validate().catch(() => false)
-  if (!valid) return
-  loading.value = true
   errorMsg.value = ''
+  if (!username.value.trim() || !password.value) {
+    errorMsg.value = '请输入用户名与密码'
+    return
+  }
+  loading.value = true
   try {
-    await auth.login(form.value.username.trim(), form.value.password)
+    await auth.login(username.value.trim(), password.value)
     await system.refresh()
-    ElMessage.success(`欢迎,${auth.username}`)
+    toast.success(`欢迎,${auth.username}`)
     const redirect = typeof route.query.redirect === 'string' ? route.query.redirect : '/'
     router.push(redirect)
   } catch (e) {
-    if (e instanceof ApiRequestError) {
-      errorMsg.value = e.code === 'invalid_credentials'
-        ? '用户名或密码错误' : e.message
-    } else {
-      errorMsg.value = '登录失败,请稍后重试'
-    }
+    errorMsg.value = e instanceof ApiRequestError
+      ? (e.code === 'invalid_credentials' ? '用户名或密码错误' : e.message)
+      : '登录失败,请稍后重试'
   } finally {
     loading.value = false
   }
 }
+
+const gridStyle = {
+  backgroundImage:
+    'radial-gradient(70% 55% at 15% 0%, rgba(9,105,218,0.42), transparent 68%),' +
+    'linear-gradient(rgba(255,255,255,0.045) 1px, transparent 1px),' +
+    'linear-gradient(90deg, rgba(255,255,255,0.045) 1px, transparent 1px)',
+  backgroundSize: 'auto, 34px 34px, 34px 34px',
+}
 </script>
 
 <template>
-  <div class="login-page">
-    <el-card class="login-card">
-      <div class="login-head">
-        <h2>GMod Workshop Mod 管理面板</h2>
-        <p>面向 Garry's Mod 专用服务器的 Workshop 内容管理</p>
+  <div class="grid min-h-screen lg:grid-cols-[1.05fr_1fr]">
+    <section
+      class="relative hidden flex-col justify-between overflow-hidden bg-ink p-12 text-white lg:flex"
+      :style="gridStyle"
+    >
+      <div class="flex items-center gap-2.5">
+        <span class="flex size-9 items-center justify-center rounded-xl bg-white/10 ring-1 ring-white/15">
+          <Server class="size-[18px]" aria-hidden="true" />
+        </span>
+        <span class="text-[14px] font-semibold tracking-tight">GMod Mod 管理面板</span>
       </div>
-      <el-form ref="formRef" :model="form" :rules="rules" label-position="top"
-               @keyup.enter="submit">
-        <el-form-item label="用户名" prop="username">
-          <el-input v-model="form.username" :prefix-icon="User" placeholder="管理员用户名"
-                    autocomplete="username" />
-        </el-form-item>
-        <el-form-item label="密码" prop="password">
-          <el-input v-model="form.password" type="password" show-password
-                    :prefix-icon="Lock" placeholder="密码" autocomplete="current-password" />
-        </el-form-item>
-        <el-alert v-if="errorMsg" :title="errorMsg" type="error" show-icon :closable="false" />
-        <el-button type="primary" class="login-btn" :loading="loading" native-type="submit"
-                   @click.prevent="submit">
-          登 录
-        </el-button>
-      </el-form>
-      <p class="login-tip">首次部署请用命令行创建管理员账号(见 README)。</p>
-    </el-card>
+
+      <div class="max-w-md">
+        <h1 class="text-[34px] font-semibold leading-[1.15] tracking-tight">
+          Workshop 内容的<br>集中化管控台
+        </h1>
+        <p class="mt-4 text-[13.5px] leading-6 text-white/65">
+          面向 Garry's Mod 专用服务器:扫描收录、状态巡检、批量变更与审计留痕,
+          所有写操作都经预览确认后落地。
+        </p>
+        <ul class="mt-8 space-y-3 text-[13px] text-white/75">
+          <li class="flex items-center gap-2.5">
+            <ShieldCheck class="size-4 text-white/50" aria-hidden="true" />
+            只读开关 + 变更计划双重保护
+          </li>
+          <li class="flex items-center gap-2.5">
+            <ShieldCheck class="size-4 text-white/50" aria-hidden="true" />
+            预览图卡片化浏览,快速挑选取舍
+          </li>
+          <li class="flex items-center gap-2.5">
+            <ShieldCheck class="size-4 text-white/50" aria-hidden="true" />
+            全量操作审计,可回溯到 request_id
+          </li>
+        </ul>
+      </div>
+
+      <p class="text-[11.5px] text-white/40">服务端管理面板 · 部署于专用服务器</p>
+    </section>
+
+    <section class="flex items-center justify-center bg-canvas px-5 py-10">
+      <div class="w-full max-w-[360px]">
+        <div class="mb-7 lg:hidden">
+          <span class="flex size-9 items-center justify-center rounded-xl bg-accent-soft text-accent">
+            <Server class="size-[18px]" aria-hidden="true" />
+          </span>
+        </div>
+
+        <h2 class="text-[20px] font-semibold tracking-tight text-ink">登录管理面板</h2>
+        <p class="mt-1 text-[13px] text-ink-3">使用管理员账号继续</p>
+
+        <form class="mt-6 space-y-4" @submit.prevent="submit">
+          <div>
+            <label for="login-user" class="mb-1.5 block text-[12.5px] font-medium text-ink-2">用户名</label>
+            <div class="relative">
+              <User class="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-ink-4" aria-hidden="true" />
+              <Input
+                id="login-user"
+                v-model="username"
+                class="pl-9"
+                placeholder="管理员用户名"
+                autocomplete="username"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label for="login-pass" class="mb-1.5 block text-[12.5px] font-medium text-ink-2">密码</label>
+            <div class="relative">
+              <Lock class="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-ink-4" aria-hidden="true" />
+              <Input
+                id="login-pass"
+                v-model="password"
+                type="password"
+                class="pl-9"
+                placeholder="密码"
+                autocomplete="current-password"
+              />
+            </div>
+          </div>
+
+          <div
+            v-if="errorMsg"
+            class="rounded-lg border border-danger/30 bg-danger-soft px-3 py-2 text-[12.5px] leading-5 text-danger"
+            role="alert"
+          >
+            {{ errorMsg }}
+          </div>
+
+          <Button type="submit" variant="primary" size="lg" class="w-full" :loading="loading" :disabled="!canSubmit">
+            登 录
+          </Button>
+        </form>
+
+        <p class="mt-5 text-center text-[11.5px] leading-5 text-ink-4">
+          首次部署请用命令行创建管理员账号(见 README)。
+        </p>
+      </div>
+    </section>
   </div>
 </template>
-
-<style scoped>
-.login-page {
-  min-height: 100vh;
-  display: flex; align-items: center; justify-content: center;
-  background: linear-gradient(160deg, #1f2d3d 0%, #2b3a4d 60%, #33526e 100%);
-}
-.login-card { width: 400px; }
-.login-head { text-align: center; margin-bottom: 18px; }
-.login-head h2 { margin: 0 0 6px; font-size: 20px; }
-.login-head p { margin: 0; color: #909399; font-size: 13px; }
-.login-btn { width: 100%; margin-top: 8px; }
-.login-tip { margin: 14px 0 0; font-size: 12px; color: #909399; text-align: center; }
-</style>
