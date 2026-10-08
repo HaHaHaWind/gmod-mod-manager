@@ -97,23 +97,33 @@ def download_preview(settings: Settings, wid: str, url: str) -> str:
                 with client.stream("GET", current) as resp:
                     if resp.is_redirect:
                         if _hop == MAX_REDIRECTS:
+                            log.warning("预览图下载失败 wid=%s 重定向超过 %d 次 url=%s",
+                                        wid, MAX_REDIRECTS, current)
                             return "failed"
                         loc = resp.headers.get("location", "")
                         if not loc:
+                            log.warning("预览图下载失败 wid=%s 重定向缺少 Location url=%s",
+                                        wid, current)
                             return "invalid"
                         from urllib.parse import urljoin
                         current = urljoin(current, loc)
                         continue
                     if resp.status_code != 200:
+                        log.warning("预览图下载失败 wid=%s HTTP %s url=%s",
+                                    wid, resp.status_code, current)
                         return "failed"
                     ctype = (resp.headers.get("content-type") or "").split(";")[0].strip().lower()
                     if ctype not in _EXT_BY_CTYPE:
+                        log.warning("预览图下载失败 wid=%s 非图片类型 ctype=%s url=%s",
+                                    wid, ctype or "空", current)
                         return "invalid"
                     sent = 0
                     with open(tmp, "wb") as f:
                         for chunk in resp.iter_bytes(_CHUNK):
                             sent += len(chunk)
                             if sent > settings.preview_max_bytes:
+                                log.warning("预览图下载失败 wid=%s 超过大小上限 %d url=%s",
+                                            wid, settings.preview_max_bytes, current)
                                 return "invalid"  # 超上限按拒绝处理
                             f.write(chunk)
                     break
@@ -121,7 +131,8 @@ def download_preview(settings: Settings, wid: str, url: str) -> str:
         os.replace(tmp, dest)
         return "saved"
     except (httpx.HTTPError, OSError, ApiError) as e:
-        log.info("预览图下载失败 wid=%s:%s", wid, e)
+        log.warning("预览图下载失败 wid=%s url=%s 异常:%s: %s",
+                    wid, current, type(e).__name__, e)
         return "failed"
     finally:
         # 残留的 .part 一并清理(成功路径 os.replace 已移走,missing_ok 兜底)

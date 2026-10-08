@@ -146,6 +146,8 @@ READ_ONLY=true               # 只读总开关,观察期保持 true
 | `PLAN_TTL_MINUTES` | `120` | 草稿过期时间 |
 | `LOGIN_RATE_LIMIT` | `5/300` | 登录限速:300 秒内最多 5 次 |
 | `SESSION_TTL_HOURS` | `72` | 会话有效期 |
+| `LOG_LEVEL` | `INFO` | 日志级别 |
+| `LOG_DIR` | `logs` | 运行日志目录(相对 backend,独立于数据目录);`app.log` 自动按 10MB 轮转、保留 5 份,留空则不写文件 |
 | `STEAM_API_BASE` | Steam 官方 | 元数据 API,可反代 |
 | `STEAM_PROXY` | 空(直连) | 访问 Steam API 与封面 CDN 的 HTTP 代理(国内服务器建议配置) |
 | `STEAM_WEB_API_KEY` | 空 | 可选,用于作者昵称增强查询 |

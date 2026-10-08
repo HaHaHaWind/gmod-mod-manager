@@ -21,6 +21,7 @@ from .api.routers import ALL_ROUTERS
 from .config import get_settings
 from .db import Base, get_engine
 from .errors import ApiError
+from .logging_setup import setup_logging
 
 log = logging.getLogger("gmm.main")
 
@@ -49,6 +50,7 @@ async def lifespan(app: FastAPI):
 
 def create_app() -> FastAPI:
     settings = get_settings()
+    setup_logging(settings)  # 尽早落盘:启动期间的日志也进文件
     app = FastAPI(title="GMod Workshop Mod 管理面板", version="1.0.0",
                   lifespan=lifespan, docs_url=None, redoc_url=None,
                   openapi_url="/api/openapi.json")

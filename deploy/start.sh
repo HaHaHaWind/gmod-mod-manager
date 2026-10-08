@@ -14,7 +14,8 @@ APP_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 HOST="${HOST:-127.0.0.1}"
 PORT="${PORT:-8000}"
 PID_FILE="${APP_DIR}/backend/data/uvicorn.pid"
-LOG_FILE="${APP_DIR}/backend/data/uvicorn.log"
+LOG_DIR="${APP_DIR}/backend/logs"     # 运行日志目录:app.log 为应用日志(自动轮转)
+LOG_OUT="${LOG_DIR}/uvicorn.out"      # 进程 stdout/stderr 兜底(启动崩溃等)
 
 _running() {
   [ -f "${PID_FILE}" ] && kill -0 "$(cat "${PID_FILE}")" 2>/dev/null
@@ -29,7 +30,7 @@ do_start() {
     echo "==> 已在运行(PID $(cat "${PID_FILE}")),如需重启请用 restart"
     exit 0
   fi
-  mkdir -p "${APP_DIR}/backend/data"
+  mkdir -p "${APP_DIR}/backend/data" "${LOG_DIR}"
   cd "${APP_DIR}/backend"
   echo "==> 数据库迁移…"
   .venv/bin/alembic upgrade head
@@ -38,13 +39,13 @@ do_start() {
     echo "   构建方法:cd frontend && npm ci && npm run build"
   fi
   echo "==> 启动 uvicorn(${HOST}:${PORT})…"
-  nohup .venv/bin/uvicorn app.main:app --host "${HOST}" --port "${PORT}" >> "${LOG_FILE}" 2>&1 &
+  nohup .venv/bin/uvicorn app.main:app --host "${HOST}" --port "${PORT}" >> "${LOG_OUT}" 2>&1 &
   echo $! > "${PID_FILE}"
   sleep 1
   if _running; then
-    echo "==> 已启动:http://${HOST}:${PORT}(日志:${LOG_FILE})"
+    echo "==> 已启动:http://${HOST}:${PORT}(运行日志:${LOG_DIR}/app.log)"
   else
-    echo "!! 启动失败,请查看日志:${LOG_FILE}"
+    echo "!! 启动失败,请查看 ${LOG_OUT} 与 ${LOG_DIR}/app.log"
     rm -f "${PID_FILE}"
     exit 1
   fi

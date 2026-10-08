@@ -37,6 +37,9 @@ class Settings(BaseSettings):
     session_ttl_hours: int = 72
     login_rate_limit: str = "5/300"  # 次数/秒
     log_level: str = "INFO"
+    # 运行日志目录(独立于数据目录,便于排查);相对路径基于 backend 工作目录;
+    # 留空则不写文件日志。app.log 按大小轮转:单文件 10MB,保留 5 份
+    log_dir: str = "logs"
 
     # ---- 管理模式 ----
     management_mode: str = "observe"
@@ -99,6 +102,13 @@ class Settings(BaseSettings):
     @property
     def data_path(self) -> Path:
         p = Path(self.data_dir)
+        return p if p.is_absolute() else Path.cwd() / p
+
+    @property
+    def log_path(self) -> Path | None:
+        p = self._opt_path(self.log_dir)
+        if p is None:
+            return None
         return p if p.is_absolute() else Path.cwd() / p
 
     def _opt_path(self, raw: str) -> Path | None:

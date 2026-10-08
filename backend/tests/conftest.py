@@ -17,6 +17,7 @@ from pathlib import Path
 _BASE = Path(tempfile.mkdtemp(prefix="gmm-test-env-"))
 os.environ.update({
     "DATA_DIR": str(_BASE / "data"),
+    "LOG_DIR": str(_BASE / "logs"),
     "WORKSHOP_CACHE_ROOT": str(_BASE / "cache"),
     "GMOD_ADDONS_ROOT": str(_BASE / "addons"),
     "WORKSHOP_IDS_FILE": str(_BASE / "cfg" / "srcds_workshop_ids.txt"),
