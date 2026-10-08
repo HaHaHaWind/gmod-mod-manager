@@ -26,7 +26,8 @@ from ..errors import bad_request, too_many
 
 ALLOWED_HOST_SUFFIXES = (
     "steampowered.com",        # steamcdn-a / community.fastly / clans 等
-    "akamaihd.net",            # steamuserimages-a.akamaihd.net
+    "akamaihd.net",            # steamuserimages-a.akamaihd.net(旧工坊图片域)
+    "steamusercontent.com",    # images.steamusercontent.com(工坊图片现行域)
     "steamstatic.com",         # steamcommunity 相关静态资源
     "steamcontent.com",
 )

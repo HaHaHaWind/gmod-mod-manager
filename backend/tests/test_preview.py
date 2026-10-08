@@ -25,6 +25,8 @@ def _expect(code: str, fn, *args):
     "http://clans.cloudflare.steampowered.com/banner.jpg",
     "https://shared.fastly.steampowered.com/a.png",
     "https://steamuserimages-a.akamaihd.net/ugc/1/x.jpg",
+    "https://images.steamusercontent.com/ugc/123/ABC/",  # 工坊图片现行 CDN 域
+    "https://steamusercontent.com/i.png",
     "https://steamstatic.com/i.png",
     "https://cache1.steamcontent.com/z.bin",
 ])
@@ -38,6 +40,7 @@ def test_validate_accepts_whitelisted_hosts(url):
     ("https://evil.example.com/x.jpg", "preview_host_denied"),           # 域名外
     ("https://steampowered.com.evil.com/x.jpg", "preview_host_denied"),  # 后缀仿冒
     ("https://x.jpg@steampowered.com.evil.net/y", "preview_host_denied"),
+    ("https://steamusercontent.com.evil.com/x.jpg", "preview_host_denied"),
     ("https://[2001:db8::1]/x.jpg", "bad_preview_url"),                  # IPv6 字面量
     ("https:///nohost.jpg", "bad_preview_url"),                          # 缺主机
 ])
