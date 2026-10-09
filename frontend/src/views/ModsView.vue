@@ -10,6 +10,7 @@ import { useSystemStore } from '@/stores/system'
 import { toast } from '@/composables/useToast'
 import { ACTION_ZH } from '@/utils/format'
 import Button from '@/components/ui/Button.vue'
+import Checkbox from '@/components/ui/Checkbox.vue'
 import Dialog from '@/components/ui/Dialog.vue'
 import Input from '@/components/ui/Input.vue'
 import Pagination from '@/components/ui/Pagination.vue'
@@ -155,6 +156,18 @@ function toggle(wid: string) {
     : [...selected.value, wid]
 }
 
+// 选择范围与列表一致:每次加载后 selected 会被裁剪为当前页可见项,
+// 因此"全选"的语义就是"全选本页",避免跨页残留造成误操作。
+const pageIds = computed(() => rows.value.map((m) => m.workshop_id))
+const allSelected = computed(
+  () => pageIds.value.length > 0 && pageIds.value.every((id) => selected.value.includes(id)),
+)
+const partialSelected = computed(() => !allSelected.value && selected.value.length > 0)
+const selectAll = computed({
+  get: () => allSelected.value,
+  set: (v: boolean) => { selected.value = v ? [...pageIds.value] : [] },
+})
+
 const selectedMods = computed(() => rows.value.filter((m) => selected.value.includes(m.workshop_id)))
 
 const planOpen = ref(false)
@@ -165,11 +178,38 @@ function defaultAction(m: ModView): Action {
   return m.desired_state === 'enabled' ? 'disable' : 'enable'
 }
 
+// 批量设置是"动作"而非"状态":选中后立即应用到全部勾选项,再复位为占位项。
+const bulkAction = ref('')
+const bulkOptions = [
+  { value: '', label: '批量设置…' },
+  { value: 'enable', label: '全部启用' },
+  { value: 'disable', label: '全部禁用' },
+  { value: 'delete', label: '全部删除' },
+]
+
+function applyBulk(value: string) {
+  bulkAction.value = ''
+  if (!value) return
+  const next = { ...planActions.value }
+  for (const m of selectedMods.value) next[m.workshop_id] = value
+  planActions.value = next
+}
+
+const actionCounts = computed(() => {
+  const counts: Record<string, number> = { enable: 0, disable: 0, delete: 0 }
+  for (const m of selectedMods.value) {
+    const action = planActions.value[m.workshop_id]
+    if (action && action in counts) counts[action] += 1
+  }
+  return counts
+})
+
 function openPlan() {
   if (!selected.value.length) { toast.warning('请先勾选要变更的 Mod'); return }
   const map: Record<string, string> = {}
   for (const m of selectedMods.value) map[m.workshop_id] = defaultAction(m)
   planActions.value = map
+  bulkAction.value = ''
   planOpen.value = true
 }
 
@@ -220,6 +260,12 @@ onMounted(load)
     </div>
 
     <div class="flex flex-wrap items-center gap-x-3 gap-y-1.5">
+      <Checkbox
+        v-model="selectAll"
+        :indeterminate="partialSelected"
+        :disabled="!rows.length"
+        label="全选本页"
+      />
       <span class="small muted num">共 {{ total }} 个 Mod</span>
       <template v-if="selected.length">
         <span class="small muted num">已选 {{ selected.length }} 项</span>
@@ -253,19 +299,37 @@ onMounted(load)
       description="先预览,后提交;应用前可随时取消。计划 30 分钟未提交将过期。"
       width-class="max-w-2xl"
     >
-      <div class="space-y-2">
-        <div
-          v-for="m in selectedMods"
-          :key="m.workshop_id"
-          class="flex items-center gap-3 rounded-lg border border-line px-3 py-2"
-        >
-          <div class="min-w-0 flex-1">
-            <p class="truncate text-[13px] font-medium text-ink">{{ m.title || m.folder_name }}</p>
-            <p class="mono tiny muted">
-              ID {{ m.workshop_id }} · 当前期望 {{ m.desired_zh || m.desired_state }}
-            </p>
+      <div class="space-y-2.5">
+        <div class="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-lg border border-line bg-surface-muted px-3 py-2">
+          <Select
+            v-model="bulkAction"
+            :options="bulkOptions"
+            class="w-[132px]"
+            aria-label="批量设置动作"
+            @update:model-value="applyBulk"
+          />
+          <span class="small muted">应用到下方全部 {{ selectedMods.length }} 项</span>
+          <span class="spacer" />
+          <span class="small muted num">
+            启用 {{ actionCounts.enable }} · 禁用 {{ actionCounts.disable }} · 删除 {{ actionCounts.delete }}
+          </span>
+        </div>
+
+        <div class="max-h-[46vh] space-y-2 overflow-auto pr-0.5">
+          <div
+            v-for="m in selectedMods"
+            :key="m.workshop_id"
+            class="flex items-center gap-3 rounded-lg border border-line px-3 py-2"
+          >
+            <div class="min-w-0 flex-1">
+              <p class="truncate text-[13px] font-medium text-ink">{{ m.title || m.folder_name }}</p>
+              <p class="mono tiny muted">
+                ID {{ m.workshop_id }} · 当前期望 {{ m.desired_zh || m.desired_state }}
+                <span v-if="m.protected" class="ml-1 text-warn">· 受保护,不可删除</span>
+              </p>
+            </div>
+            <Select v-model="planActions[m.workshop_id]" :options="actionOptions" class="w-[112px]" />
           </div>
-          <Select v-model="planActions[m.workshop_id]" :options="actionOptions" class="w-[112px]" />
         </div>
       </div>
       <template #footer>
