@@ -6,9 +6,10 @@ import { ApiRequestError } from '@/api/client'
 import type { PlanView } from '@/api/types'
 import { useSystemStore } from '@/stores/system'
 import { toast } from '@/composables/useToast'
-import { ACTION_ZH, PLAN_STATUS_ZH, formatTime, planStatusTone } from '@/utils/format'
+import { PLAN_STATUS_ZH, formatTime, planStatusTone, planTitle } from '@/utils/format'
 import Badge from '@/components/ui/Badge.vue'
 import Button from '@/components/ui/Button.vue'
+import CopyButton from '@/components/ui/CopyButton.vue'
 import EmptyState from '@/components/ui/EmptyState.vue'
 import Panel from '@/components/ui/Panel.vue'
 import Select from '@/components/ui/Select.vue'
@@ -39,20 +40,10 @@ async function load() {
   try {
     rows.value = (await apiPlanList(statusFilter.value, 50)).items
   } catch (e) {
-    toast.error(e instanceof ApiRequestError ? e.message : '加载计划列表失败')
+    toast.error(e instanceof ApiRequestError ? e.message : '加载变更记录失败')
   } finally {
     loading.value = false
   }
-}
-
-function summaryOf(p: PlanView): string {
-  const s = p.diff?.summary ?? {}
-  const parts: string[] = []
-  for (const act of ['enable', 'disable', 'delete']) {
-    const n = Number(s[act] ?? 0)
-    if (n > 0) parts.push(`${ACTION_ZH[act]} × ${n}`)
-  }
-  return parts.length ? parts.join(' / ') : '无变更项'
 }
 
 function openPlan(id: string) {
@@ -63,30 +54,33 @@ onMounted(() => { load(); system.refresh() })
 </script>
 
 <template>
-  <div>
-    <Panel title="变更计划" description="所有变更都先形成计划,预览确认后再提交与应用">
-      <template #actions>
-        <Select v-model="statusFilter" :options="statusOptions" class="w-[168px]" aria-label="状态筛选" @update:model-value="load" />
-        <Button size="sm" :loading="loading" @click="load">刷新</Button>
-      </template>
+  <div class="space-y-4">
+    <!-- 页面标题区 -->
+    <div class="flex flex-wrap items-center gap-x-3 gap-y-2">
+      <h2 class="text-2xl font-semibold tracking-tight text-ink">变更记录</h2>
+      <span class="small muted">所有变更先形成预览,确认提交后再应用,可随时取消</span>
+      <span class="spacer" />
+      <Select v-model="statusFilter" :options="statusOptions" class="w-[168px]" aria-label="状态筛选" @update:model-value="load" />
+      <Button variant="secondary" :loading="loading" @click="load">刷新</Button>
+    </div>
 
-      <div v-if="loading && rows.length === 0" class="space-y-2">
-        <Skeleton v-for="i in 6" :key="i" class="h-10 w-full" />
+    <Panel :padded="false">
+      <div v-if="loading && rows.length === 0" class="space-y-2 p-4">
+        <Skeleton v-for="i in 6" :key="i" class="h-12 w-full" />
       </div>
 
       <EmptyState
         v-else-if="rows.length === 0"
-        title="没有符合条件的计划"
-        description="在 Mod 库中勾选条目即可创建变更计划。"
+        title="没有符合条件的变更记录"
+        description="在模组库勾选条目后,通过底部批量操作栏即可生成变更预览。"
       />
 
-      <div v-else class="-mx-4 -mb-4 overflow-x-auto">
+      <div v-else class="overflow-x-auto">
         <table class="tbl">
           <thead>
             <tr>
-              <th style="width: 220px">计划 ID</th>
+              <th>变更</th>
               <th style="width: 130px">状态</th>
-              <th>变更摘要</th>
               <th style="width: 110px">创建人</th>
               <th style="width: 168px">创建时间</th>
               <th style="width: 168px">应用时间</th>
@@ -98,20 +92,22 @@ onMounted(() => { load(); system.refresh() })
               <td>
                 <button
                   type="button"
-                  class="mono text-[12.5px] text-accent hover:underline"
-                  :title="row.id"
+                  class="text-left text-[13.5px] font-medium text-accent hover:underline"
                   @click="openPlan(row.id)"
                 >
-                  {{ row.id.slice(0, 12) }}…
+                  {{ planTitle(row.payload) }}
                 </button>
-                <Badge v-if="row.id === activeId" variant="warning" class="ml-1.5">进行中</Badge>
+                <span class="mono mt-0.5 flex items-center gap-1.5 text-[11.5px] text-ink-4">
+                  {{ row.id.slice(0, 12) }}…
+                  <CopyButton :text="row.id" label="计划 ID" />
+                  <Badge v-if="row.id === activeId" variant="warning">进行中</Badge>
+                </span>
               </td>
               <td>
                 <Badge :variant="planStatusTone(row.status)">
                   {{ PLAN_STATUS_ZH[row.status] || row.status }}
                 </Badge>
               </td>
-              <td>{{ summaryOf(row) }}</td>
               <td>{{ row.created_by || '-' }}</td>
               <td class="muted num">{{ formatTime(row.created_at) }}</td>
               <td class="muted num">{{ formatTime(row.applied_at) }}</td>

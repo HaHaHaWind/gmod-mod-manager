@@ -61,8 +61,8 @@ async function restore(row: TrashView) {
 async function purge(row: TrashView) {
   if (!requireWritable()) return
   const ok = await confirmDialog({
-    title: '彻底删除确认',
-    description: `将永久删除 "${row.title}"(ID ${row.workshop_id})的磁盘文件,大小 ${formatBytes(row.size_bytes)}。该操作不可恢复!`,
+    title: '永久删除确认',
+    description: `将永久删除 "${row.title}"(ID ${row.workshop_id})的磁盘文件,大小 ${formatBytes(row.size_bytes)}。该操作不可恢复,删除后只能重新从创意工坊下载。`,
     confirmText: '永久删除',
     danger: true,
   })
@@ -70,7 +70,7 @@ async function purge(row: TrashView) {
   acting.value = true
   try {
     const resp = await apiTrashPurge(row.id)
-    toast.success(resp.removed ? '已彻底删除磁盘文件' : '磁盘文件已不存在,记录已标记清除')
+    toast.success(resp.removed ? '已永久删除磁盘文件' : '磁盘文件已不存在,记录已标记清除')
     await load()
   } catch (e) {
     toast.error(e instanceof ApiRequestError ? e.message : '删除失败')
@@ -84,18 +84,22 @@ onMounted(load)
 
 <template>
   <div class="space-y-4">
+    <div class="flex flex-wrap items-end justify-between gap-3">
+      <div>
+        <h1 class="text-[24px] font-semibold tracking-tight text-ink">回收站</h1>
+        <p class="mt-1 text-[13.5px] text-ink-3">共 {{ rows.length }} 条记录</p>
+      </div>
+      <Button size="sm" :loading="loading" @click="load">刷新</Button>
+    </div>
+
     <div class="flex items-start gap-2 rounded-lg border border-accent-line bg-accent-soft px-3 py-2.5">
       <Trash2 class="mt-0.5 size-4 shrink-0 text-accent" aria-hidden="true" />
       <p class="text-[12.5px] leading-5 text-ink-2">
-        删除的 Mod 会先移入回收站(移动文件,非立即删除),超过保留期后由后台自动清理。
+        在模组库中删除的模组会先移入回收站(仅移动文件,不会立即删除),保留一段时间后由后台自动清理;期间可随时还原。
       </p>
     </div>
 
-    <Panel title="回收站" :description="`共 ${rows.length} 条记录`" :padded="false">
-      <template #actions>
-        <Button size="sm" :loading="loading" @click="load">刷新</Button>
-      </template>
-
+    <Panel :padded="false">
       <div v-if="loading && rows.length === 0" class="space-y-2 p-4">
         <Skeleton v-for="i in 5" :key="i" class="h-11 w-full" />
       </div>
@@ -103,14 +107,14 @@ onMounted(load)
       <EmptyState
         v-else-if="rows.length === 0"
         title="回收站为空"
-        description="被删除的 Mod 会先出现在这里,可在保留期内还原。"
+        description="被删除的模组会先出现在这里,可在自动清理前还原。"
       />
 
       <div v-else class="overflow-x-auto">
         <table class="tbl">
           <thead>
             <tr>
-              <th>Mod</th>
+              <th>名称</th>
               <th style="width: 110px">状态</th>
               <th style="width: 96px">大小</th>
               <th style="width: 168px">删除时间</th>
@@ -154,7 +158,7 @@ onMounted(load)
                     :disabled="system.readOnly || row.status !== 'in_trash'"
                     @click="purge(row)"
                   >
-                    彻底删除
+                    永久删除
                   </Button>
                 </div>
               </td>

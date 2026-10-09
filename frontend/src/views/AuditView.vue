@@ -1,12 +1,12 @@
 <script setup lang="ts">
-/** 审计日志:分页 + 详情展开(敏感字段已由后端脱敏)。 */
+/** 审计日志:分页 + 详情展开(敏感字段已由后端脱敏),仅管理员可见。 */
 import { onMounted, ref, watch } from 'vue'
 import { ChevronDown } from 'lucide-vue-next'
 import { apiAuditList } from '@/api'
 import type { AuditView } from '@/api/types'
 import { ApiRequestError } from '@/api/client'
 import { toast } from '@/composables/useToast'
-import { formatTime, outcomeTone } from '@/utils/format'
+import { OUTCOME_ZH, formatTime, outcomeTone } from '@/utils/format'
 import { cn } from '@/lib/utils'
 import Badge from '@/components/ui/Badge.vue'
 import Button from '@/components/ui/Button.vue'
@@ -50,11 +50,17 @@ onMounted(load)
 
 <template>
   <div class="space-y-4">
-    <Panel title="审计日志" :description="`所有管理操作(含被拒绝的请求)均有记录,共 ${total} 条`" :padded="false">
-      <template #actions>
-        <Button size="sm" :loading="loading" @click="load">刷新</Button>
-      </template>
+    <div class="flex flex-wrap items-end justify-between gap-3">
+      <div>
+        <h1 class="text-[24px] font-semibold tracking-tight text-ink">审计日志</h1>
+        <p class="mt-1 text-[13.5px] text-ink-3">
+          所有管理操作(含被拒绝的请求)均有记录,共 {{ total }} 条。
+        </p>
+      </div>
+      <Button size="sm" :loading="loading" @click="load">刷新</Button>
+    </div>
 
+    <Panel :padded="false">
       <div v-if="loading && rows.length === 0" class="space-y-2 p-4">
         <Skeleton v-for="i in 8" :key="i" class="h-10 w-full" />
       </div>
@@ -69,11 +75,11 @@ onMounted(load)
         <table class="tbl">
           <thead>
             <tr>
-              <th style="width: 168px">时间</th>
               <th style="width: 110px">操作人</th>
               <th style="width: 190px">动作</th>
+              <th style="width: 200px">对象</th>
               <th style="width: 90px">结果</th>
-              <th style="width: 200px">目标</th>
+              <th style="width: 168px">时间</th>
               <th style="width: 130px">来源 IP</th>
               <th style="width: 150px">request_id</th>
               <th style="width: 52px"></th>
@@ -82,13 +88,15 @@ onMounted(load)
           <tbody>
             <template v-for="row in rows" :key="row.id">
               <tr>
-                <td class="muted num">{{ formatTime(row.ts) }}</td>
                 <td>{{ row.actor || '-' }}</td>
                 <td><span class="mono text-[12.5px]">{{ row.action }}</span></td>
-                <td>
-                  <Badge :variant="outcomeTone(row.outcome)">{{ row.outcome }}</Badge>
-                </td>
                 <td><span class="mono text-[12.5px]">{{ row.target_type }}:{{ row.target_id || '-' }}</span></td>
+                <td>
+                  <Badge :variant="outcomeTone(row.outcome)">
+                    {{ OUTCOME_ZH[row.outcome] || row.outcome }}
+                  </Badge>
+                </td>
+                <td class="muted num">{{ formatTime(row.ts) }}</td>
                 <td><span class="mono text-[12.5px]">{{ row.ip || '-' }}</span></td>
                 <td>
                   <span class="mono tiny muted">

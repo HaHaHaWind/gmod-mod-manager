@@ -62,7 +62,7 @@ export async function request<T>(path: string, opts: Opts = {}): Promise<T> {
       method, headers, body, credentials: 'same-origin',
     })
   } catch {
-    throw new ApiRequestError(0, { code: 'network_error', message: '无法连接到管理面板后端' })
+    throw new ApiRequestError(0, { code: 'network_error', message: '无法连接到服务后端,请检查网络或稍后重试' })
   }
 
   if (resp.status === 401) throw new UnauthorizedError()

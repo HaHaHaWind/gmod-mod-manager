@@ -4,29 +4,30 @@
 @import '@fontsource/ibm-plex-mono/500.css';
 
 /* ============================================================
-   设计 token —— 亮色基调,单一强调色,冷调中性面
-   现代控制台:更柔的发丝边框 + 分层阴影 + 克制的蓝
+   设计 token —— 模组管理工具视觉规范
+   背景 #F6F7F9 / 表面 #FFFFFF / 正文 #20242C / 辅助 #626B78
+   强调色 #3B6EF5;标题 24-28px、正文 14-15px、辅助 12-13px
    ============================================================ */
 @theme {
   /* 中性面 */
-  --color-canvas: #f7f8fb;
+  --color-canvas: #f6f7f9;
   --color-surface: #ffffff;
-  --color-surface-muted: #f2f4f8;
-  --color-surface-sunken: #e9edf4;
-  --color-line: #e6eaf1;
-  --color-line-strong: #d2d9e4;
+  --color-surface-muted: #f1f3f6;
+  --color-surface-sunken: #e9ecf1;
+  --color-line: #e5e8ee;
+  --color-line-strong: #d2d8e2;
 
   /* 文本层级 */
-  --color-ink: #0d1522;
-  --color-ink-2: #3e4a5d;
-  --color-ink-3: #68748a;
-  --color-ink-4: #97a1b3;
+  --color-ink: #20242c;
+  --color-ink-2: #454e5c;
+  --color-ink-3: #626b78;
+  --color-ink-4: #99a2b0;
 
   /* 强调色:仅用于链接、状态与主操作 */
-  --color-accent: #2563eb;
-  --color-accent-strong: #1d4ed8;
-  --color-accent-soft: #ecf2ff;
-  --color-accent-line: #c7d9ff;
+  --color-accent: #3b6ef5;
+  --color-accent-strong: #2b5be0;
+  --color-accent-soft: #edf2fe;
+  --color-accent-line: #cad9fc;
 
   /* 语义色:只表达真实状态 */
   --color-ok: #15803d;
@@ -36,17 +37,18 @@
   --color-danger: #dc2626;
   --color-danger-soft: #fdeeee;
 
-  /* 分层阴影:取代"处处描边",用柔和的浮起感表达层次 */
-  --shadow-card: 0 1px 2px rgb(13 21 34 / 0.04), 0 10px 28px -18px rgb(13 21 34 / 0.16);
-  --shadow-pop: 0 16px 40px -12px rgb(13 21 34 / 0.18), 0 2px 6px rgb(13 21 34 / 0.05);
+  /* 分层阴影:低对比边框 + 轻阴影表达层次 */
+  --shadow-card: 0 1px 2px rgb(32 36 44 / 0.04), 0 10px 28px -18px rgb(32 36 44 / 0.14);
+  --shadow-pop: 0 16px 40px -12px rgb(32 36 44 / 0.16), 0 2px 6px rgb(32 36 44 / 0.05);
 
   --font-sans: 'IBM Plex Sans Variable', 'PingFang SC', 'Microsoft YaHei',
     'Noto Sans CJK SC', 'Source Han Sans SC', sans-serif;
   --font-mono: 'IBM Plex Mono', 'Cascadia Code', Consolas, 'Courier New', monospace;
 
+  /* 动画统一收敛在 120-200ms */
   --animate-ui-in: ui-in 140ms cubic-bezier(0.16, 1, 0.3, 1);
   --animate-ui-out: ui-out 110ms ease-in;
-  --animate-rise: rise 260ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  --animate-rise: rise 200ms cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
 @keyframes ui-in {
@@ -85,8 +87,8 @@ body {
   /* 极淡的冷色光晕,给纯白背景一点纵深,避免"死白" */
   background-color: var(--color-canvas);
   background-image:
-    radial-gradient(900px 480px at 10% -10%, rgb(37 99 235 / 0.05), transparent 70%),
-    radial-gradient(760px 420px at 100% 0%, rgb(37 99 235 / 0.03), transparent 72%);
+    radial-gradient(900px 480px at 10% -10%, rgb(59 110 245 / 0.05), transparent 70%),
+    radial-gradient(760px 420px at 100% 0%, rgb(59 110 245 / 0.03), transparent 72%);
   background-attachment: fixed;
   background-repeat: no-repeat;
 }
@@ -154,7 +156,7 @@ body {
     padding: 10px 14px;
     text-align: left;
     font-weight: 600;
-    font-size: 11.5px;
+    font-size: 12px;
     letter-spacing: 0.04em;
     text-transform: uppercase;
     color: var(--color-ink-3);
@@ -180,8 +182,8 @@ body {
   .spacer { flex: 1 1 auto; }
   .mono { font-family: var(--font-mono); }
   .muted { color: var(--color-ink-3); }
-  .tiny { font-size: 11px; }
-  .small { font-size: 12px; }
+  .tiny { font-size: 12px; }
+  .small { font-size: 13px; }
 }
 
 @media (prefers-reduced-motion: reduce) {

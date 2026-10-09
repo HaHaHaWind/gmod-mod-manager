@@ -34,10 +34,7 @@ const emit = defineEmits<{
     >
       <Skeleton class="aspect-video rounded-none" />
       <div class="flex flex-col gap-2 p-4">
-        <div class="flex gap-1.5">
-          <Skeleton class="h-[18px] w-14" />
-          <Skeleton class="h-[18px] w-12" />
-        </div>
+        <Skeleton class="h-[22px] w-20" />
         <Skeleton class="h-4 w-3/4" />
         <Skeleton class="h-3 w-1/2" />
         <Skeleton class="mt-2 h-7 w-full" />
@@ -47,8 +44,8 @@ const emit = defineEmits<{
 
   <EmptyState
     v-else-if="mods.length === 0"
-    title="没有匹配的 Mod"
-    description="调整搜索关键词或筛选条件后重试;也可以先执行一次扫描缓存。"
+    title="没有匹配的模组"
+    description="调整搜索关键词或筛选条件后重试;也可以先执行一次扫描。"
   >
     <template #icon><Boxes class="size-5" aria-hidden="true" /></template>
   </EmptyState>

@@ -62,34 +62,33 @@ const gridStyle = {
         <span class="flex size-9 items-center justify-center rounded-xl bg-white/10 ring-1 ring-white/15">
           <Server class="size-[18px]" aria-hidden="true" />
         </span>
-        <span class="text-[14px] font-semibold tracking-tight">GMod Mod 管理面板</span>
+        <span class="text-[14px] font-semibold tracking-tight">GMod 模组管理器</span>
       </div>
 
       <div class="max-w-md">
         <h1 class="text-[34px] font-semibold leading-[1.15] tracking-tight">
-          Workshop 内容的<br>集中化管控台
+          集中管理服务器上的<br>Workshop 模组
         </h1>
         <p class="mt-4 text-[13.5px] leading-6 text-white/65">
-          面向 Garry's Mod 专用服务器:扫描收录、状态巡检、批量变更与审计留痕,
-          所有写操作都经预览确认后落地。
+          浏览已收录的模组、批量启用或禁用,删除的模组可从回收站还原。
         </p>
         <ul class="mt-8 space-y-3 text-[13px] text-white/75">
           <li class="flex items-center gap-2.5">
             <ShieldCheck class="size-4 text-white/50" aria-hidden="true" />
-            只读开关 + 变更计划双重保护
+            封面化浏览,快速查找与筛选
           </li>
           <li class="flex items-center gap-2.5">
             <ShieldCheck class="size-4 text-white/50" aria-hidden="true" />
-            预览图卡片化浏览,快速挑选取舍
+            批量变更先预览再应用,结果逐项可见
           </li>
           <li class="flex items-center gap-2.5">
             <ShieldCheck class="size-4 text-white/50" aria-hidden="true" />
-            全量操作审计,可回溯到 request_id
+            删除进回收站,操作全程留痕
           </li>
         </ul>
       </div>
 
-      <p class="text-[11.5px] text-white/40">服务端管理面板 · 部署于专用服务器</p>
+      <p class="text-[11.5px] text-white/40">GMod 模组管理器</p>
     </section>
 
     <section class="flex items-center justify-center bg-canvas px-5 py-10">
@@ -100,7 +99,7 @@ const gridStyle = {
           </span>
         </div>
 
-        <h2 class="text-[20px] font-semibold tracking-tight text-ink">登录管理面板</h2>
+        <h2 class="text-[20px] font-semibold tracking-tight text-ink">登录</h2>
         <p class="mt-1 text-[13px] text-ink-3">使用管理员账号继续</p>
 
         <form class="mt-6 space-y-4" @submit.prevent="submit">
