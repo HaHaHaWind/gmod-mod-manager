@@ -36,6 +36,23 @@ def _entry_dir(settings: Settings, wid: str) -> Path:
     return d
 
 
+def _prune_empty_parents(start: Path, stop: Path | None) -> None:
+    """从 start 所在位置向上删除空目录,直到 stop(不含);非空或到顶即停止。
+
+    删除只移走缓存文件,原 ID 目录(以及 garrysmod/addons 空壳)会被清空。
+    若不清掉,下次扫描会把它当作"存在但无 GMA"的异常项重新登记。
+    """
+    if stop is None:
+        return
+    parent = start.parent
+    while parent != stop and parent != parent.parent:
+        try:
+            parent.rmdir()  # 仅在目录为空时成功
+        except OSError:
+            break
+        parent = parent.parent
+
+
 def move_to_trash(session: Session, settings: Settings, wid: str, actor: str = "system",
                   note: str = "") -> TrashEntry:
     """把该 ID 的本地缓存移入回收站,并更新 Mod 状态;返回回收站条目。"""
@@ -51,6 +68,7 @@ def move_to_trash(session: Session, settings: Settings, wid: str, actor: str = "
 
     entry_dir = _entry_dir(settings, wid)
     dst = move_item(src, entry_dir, src.name)
+    _prune_empty_parents(src, settings.cache_root)
     size = _tree_size(dst)
     files = _tree_count(dst)
 

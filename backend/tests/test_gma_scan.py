@@ -8,7 +8,8 @@ from app.services.gma import (GmaError, is_gma_package, read_gma_metadata,
 from app.services.idsfile import (IdsFileError, build_ids_text,
                                   parse_ids_file, parse_ids_text, write_ids_file)
 from app.services.scan import run_full_scan
-from tests.conftest import WID_A, WID_B, WID_C, build_gma, make_cache_mod
+from tests.conftest import (WID_A, WID_B, WID_C, build_gma, make_cache_mod,
+                            make_mod_present)
 
 
 # ---------- GMA ----------
@@ -230,3 +231,37 @@ def test_scan_flags_non_gma_bin(db, dirs):
     mod = db.get(Mod, WID_B)
     assert mod.inventory_state == "invalid"
     assert ".bin" in mod.inventory_detail["reason"]
+
+
+def test_scan_skips_empty_cache_dir(db, dirs):
+    """删除后残留的空 ID 目录不应被登记为异常 Mod。"""
+    from app.models import Mod
+    (dirs.cache_root / WID_C / "garrysmod" / "addons").mkdir(parents=True)
+    report = run_full_scan(db, dirs, deep=True)
+    db.commit()
+    assert report.invalid == []
+    assert WID_C not in report.created
+    assert db.get(Mod, WID_C) is None
+    assert any("为空" in a for a in report.anomalies)
+
+
+def test_scan_removes_deleted_residue(db, dirs):
+    """已删除(排除生效)、不在回收站、磁盘无残留 → 记录应移除,而非标异常。"""
+    from app.models import Mod
+    from app.services import trash
+    make_mod_present(db, dirs, WID_A)
+    db.commit()
+    entry = trash.move_to_trash(db, dirs, WID_A, actor="tester")
+    db.commit()
+    trash.purge(db, dirs, entry.id, actor="tester")
+    db.commit()
+    # 模拟旧版本残留:空壳目录 + 重新登记的 invalid 行
+    (dirs.cache_root / WID_A / "garrysmod" / "addons").mkdir(parents=True, exist_ok=True)
+    db.add(Mod(workshop_id=WID_A, folder_name=WID_A, inventory_state="invalid"))
+    db.commit()
+
+    report = run_full_scan(db, dirs, deep=True)
+    db.commit()
+    assert WID_A in report.removed
+    assert report.invalid == []
+    assert db.get(Mod, WID_A) is None

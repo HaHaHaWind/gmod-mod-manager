@@ -41,6 +41,17 @@ def test_move_and_restore_roundtrip(db, dirs, settings):
     assert mod.requires_restart is True
 
 
+def test_move_prunes_empty_cache_dirs(db, dirs, settings):
+    """删除移走缓存文件后,原 ID 空壳目录应一并清理,避免被重扫登记为异常。"""
+    make_mod_present(db, settings, WID_A)
+    id_dir = settings.cache_root / WID_A
+    assert id_dir.exists()
+    _move(db, settings, WID_A)
+    db.commit()
+    assert not id_dir.exists()                          # 空壳目录已清理
+    assert settings.cache_root.exists()                 # 缓存根保留
+
+
 def test_restore_blocked_when_target_occupied(db, dirs, settings):
     mod = make_mod_present(db, settings, WID_A)
     entry = _move(db, settings, WID_A)

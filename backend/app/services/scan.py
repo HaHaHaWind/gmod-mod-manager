@@ -21,7 +21,7 @@ from sqlalchemy.orm import Session
 
 from .. import constants as C
 from ..config import Settings
-from ..models.entities import CollectionSnapshot, Mod, ModFile, TrashEntry, utcnow
+from ..models.entities import CollectionSnapshot, Exclusion, Mod, ModFile, TrashEntry, utcnow
 from . import gma, probe, runtime
 from .idsfile import parse_ids_file
 from .paths import detect_dir_nesting
@@ -72,6 +72,7 @@ class ScanReport:
     unchanged: list[str] = field(default_factory=list)
     missing: list[str] = field(default_factory=list)
     invalid: list[str] = field(default_factory=list)
+    removed: list[str] = field(default_factory=list)  # 已删除且磁盘无残留:记录移除
     runtime_probe: str = ""  # 探针状态:disabled / not_found / unreadable:<原因> / ok:<路径>
 
     @property
@@ -87,6 +88,7 @@ class ScanReport:
             "unchanged": len(self.unchanged),
             "missing": len(self.missing),
             "invalid": len(self.invalid),
+            "removed": len(self.removed),
             "anomalies": self.anomalies,
             "runtime_probe": self.runtime_probe,
         }
@@ -121,6 +123,20 @@ def _find_gmas(directory: Path) -> tuple[list[GmaFound], list[str]]:
     return found, non_gma
 
 
+def _dir_has_files(directory: Path) -> bool:
+    """目录树中是否含任何普通文件;用于识别删除后残留的空壳目录。
+
+    读取异常时保守返回 True,交由后续解析逻辑给出更准确的原因。
+    """
+    try:
+        for p in directory.rglob("*"):
+            if p.is_file() and not p.is_symlink():
+                return True
+    except OSError:
+        return True
+    return False
+
+
 def discover_cache(settings: Settings, report: ScanReport) -> list[CacheFind]:
     root = settings.cache_root
     if root is None:
@@ -147,6 +163,9 @@ def discover_cache(settings: Settings, report: ScanReport) -> list[CacheFind]:
             continue
         if int(child.name) > 2**63 - 1:
             report.anomalies.append(f"缓存目录 ID 超出 int64 范围,已跳过:{child.name}")
+            continue
+        if not _dir_has_files(child):
+            report.anomalies.append(f"缓存目录为空(无任何文件),已跳过:{child.name}")
             continue
         gf, non_gma = _find_gmas(child)
         finds.append(CacheFind(workshop_id=child.name, directory=child, gmas=gf, non_gma=non_gma))
@@ -218,6 +237,14 @@ def _trashed_ids(session: Session) -> set[str]:
     return set(rows)
 
 
+def _deleted_excluded_ids(session: Session) -> set[str]:
+    """用户显式删除(Exclusion=deleted 且仍生效)的 ID 集合。"""
+    rows = session.execute(select(Exclusion.workshop_id).where(
+        Exclusion.reason == C.ExclusionReason.DELETED.value,
+        Exclusion.active == True)).scalars()  # noqa: E712
+    return set(rows)
+
+
 def _collection_ids(session: Session) -> set[str]:
     rows = session.execute(select(CollectionSnapshot)).scalars()
     out: set[str] = set()
@@ -268,6 +295,7 @@ def run_full_scan(session: Session, settings: Settings, deep: bool = True) -> Sc
             addons_by_id.setdefault(a.workshop_id, []).append(a)
     coll_ids = _collection_ids(session)
     trash_ids = _trashed_ids(session)
+    deleted_ids = _deleted_excluded_ids(session)
     now = utcnow()
 
     for find in finds:
@@ -387,6 +415,12 @@ def run_full_scan(session: Session, settings: Settings, deep: bool = True) -> Sc
                 mod.inventory_state = C.InventoryState.TRASHED.value
                 mod.last_scan_at = now
                 report.updated.append(mod.workshop_id)
+            continue
+        if mod.workshop_id in deleted_ids:
+            # 用户已删除、已不在回收站、磁盘也无残留:占位记录应随之移除
+            session.execute(delete(ModFile).where(ModFile.workshop_id == mod.workshop_id))
+            session.delete(mod)
+            report.removed.append(mod.workshop_id)
             continue
         if mod.inventory_state == C.InventoryState.PRESENT.value:
             mod.inventory_state = C.InventoryState.MISSING.value
