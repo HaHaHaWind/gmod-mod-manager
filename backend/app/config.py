@@ -45,7 +45,9 @@ class Settings(BaseSettings):
     management_mode: str = "observe"
     server_control_mode: str = "manual"
     gmod_systemd_unit: str = ""
-    gmod_process_names: str = "srcds_linux,srcds_run,srcds.exe"
+    # 进程名匹配为**前缀**匹配(comm 以任一名字开头即算命中),因此 "srcds" 可覆盖
+    # srcds / srcds_linux / srcds_run / srcds_run_x64 等各发行版命名
+    gmod_process_names: str = "srcds"
     local_managed_strategy: str = "gma_copy"  # gma_copy | folder_extract
     read_only: bool = True
 

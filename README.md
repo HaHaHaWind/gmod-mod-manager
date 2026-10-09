@@ -269,6 +269,9 @@ cd frontend && npm run dev        # http://localhost:5173
 **Q:(runtime_state)为什么一直显示"未知"?**
 探针(`cfg/srcds_addons.txt`,srcds 自动生成的挂载缓存)不存在或不可读时,系统不会臆测加载状态——宁可 unknown 不出错报。srcds 至少启动过一次后探针出现,重新扫描即可看到 `loaded / not_loaded`。
 
+**Q:"待重启"什么时候会自动消失?**
+后台每 60s 例行维护一次,按 srcds 进程启动时刻判断:找不到 srcds 进程(服务器未运行),或进程启动时刻**晚于**最新配置写入时刻(重启过),就会自动清除 `requires_restart`;若运行中的实例早于配置写入时刻(旧实例仍在跑),则保留。判据基于 `/proc` 的进程启动时间与 ids 文件 / addons 目录的 mtime,不依赖 systemd,也不需要重启面板。前提是服务账号能读到 srcds 进程(默认允许;若 `/proc` 挂载了 `hidepid` 则需调整)。
+
 **Q:删除错了怎么恢复?**
 进入"回收站"页,找到条目点击"还原"。超过保留天数(`TRASH_RETENTION_DAYS`,默认 30 天)会被自动清理。
 

@@ -19,7 +19,7 @@ from ..adapters.loaders import cleanup_work_dirs
 from ..config import Settings, get_settings
 from ..db import get_session_factory
 from ..models.entities import ChangePlan, Task, utcnow
-from ..services import audit, plans, preview_store, scan, steam, trash
+from ..services import audit, plans, preview_store, runtime, scan, steam, trash
 
 log = logging.getLogger("gmm.worker")
 
@@ -173,6 +173,8 @@ class TaskWorker(threading.Thread):
         try:
             plans.expire_plans(session, self.settings)
             trash.auto_purge_expired(session, self.settings)
+            # 服务器重启后自动清除"待重启"标记(依据 srcds 进程启动时刻,见 services.runtime)
+            runtime.reconcile_restart_flags(session, self.settings)
             session.commit()
         except Exception:
             session.rollback()

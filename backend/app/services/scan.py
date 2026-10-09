@@ -22,7 +22,7 @@ from sqlalchemy.orm import Session
 from .. import constants as C
 from ..config import Settings
 from ..models.entities import CollectionSnapshot, Mod, ModFile, TrashEntry, utcnow
-from . import gma, probe
+from . import gma, probe, runtime
 from .idsfile import parse_ids_file
 from .paths import detect_dir_nesting
 
@@ -373,6 +373,8 @@ def run_full_scan(session: Session, settings: Settings, deep: bool = True) -> Sc
 
     # ---- runtime_state:srcds 挂载缓存探针(缺失则保持 unknown) ----
     report.runtime_probe = refresh_runtime_flags(session, settings)
+    # ---- 待重启:若运行中实例已晚于最新配置写入,则标记不再成立 ----
+    runtime.reconcile_restart_flags(session, settings)
     return report
 
 
