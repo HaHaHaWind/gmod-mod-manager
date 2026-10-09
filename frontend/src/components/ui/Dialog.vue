@@ -22,7 +22,7 @@ const props = withDefaults(
   <DialogRoot v-model:open="open">
     <DialogPortal>
       <DialogOverlay
-        class="fixed inset-0 z-50 bg-black/45 backdrop-blur-[3px] data-[state=open]:animate-ui-in"
+        class="fixed inset-0 z-50 bg-black/45 backdrop-blur-[4px] backdrop-saturate-[1.1] data-[state=open]:animate-ui-in"
       />
       <DialogContent
         :class="cn(

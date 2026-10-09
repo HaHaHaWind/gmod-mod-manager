@@ -23,7 +23,9 @@ const chip: Record<NonNullable<typeof props.tone>, string> = {
 </script>
 
 <template>
-  <div class="flex items-start justify-between gap-3 rounded-2xl border border-line bg-surface p-5 shadow-card">
+  <div
+    class="flex items-start justify-between gap-3 rounded-xl border border-card-border bg-surface p-5 shadow-card transition-[box-shadow] duration-[400ms] ease-in-out hover:shadow-card-hover"
+  >
     <div class="min-w-0">
       <p class="text-[12px] font-medium text-ink-3">{{ label }}</p>
       <p class="mt-1.5 text-[28px] font-semibold leading-8 tracking-tight text-ink num">{{ value }}</p>
@@ -31,7 +33,7 @@ const chip: Record<NonNullable<typeof props.tone>, string> = {
     </div>
     <span
       v-if="icon"
-      :class="cn('flex size-10 shrink-0 items-center justify-center rounded-xl', chip[tone])"
+      :class="cn('flex size-10 shrink-0 items-center justify-center rounded-lg', chip[tone])"
     >
       <component :is="icon" class="size-5" aria-hidden="true" />
     </span>

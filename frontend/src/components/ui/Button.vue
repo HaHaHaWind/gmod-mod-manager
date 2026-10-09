@@ -8,13 +8,13 @@ defineOptions({ inheritAttrs: false })
 
 const buttonVariants = cva(
   'inline-flex select-none items-center justify-center gap-1.5 whitespace-nowrap rounded-xl border font-medium ' +
-    'transition-all duration-150 active:scale-[0.985] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/35 ' +
+    'transition-all duration-300 active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/35 ' +
     'disabled:pointer-events-none disabled:opacity-45 disabled:active:scale-100',
   {
     variants: {
       variant: {
         primary:
-          'border-transparent bg-accent text-white shadow-[0_1px_2px_rgb(13_21_34/0.10)] hover:bg-accent-strong hover:shadow-[0_2px_8px_rgb(37_99_235/0.28)]',
+          'border-transparent bg-accent text-white shadow-[0_1px_2px_rgb(13_21_34/0.10)] hover:bg-accent-strong hover:shadow-[0_4px_14px_rgb(59_110_245/0.4)]',
         secondary:
           'border-line bg-surface text-ink-2 shadow-[0_1px_2px_rgb(13_21_34/0.04)] hover:border-line-strong hover:bg-surface-muted hover:text-ink',
         ghost: 'border-transparent bg-transparent text-ink-3 hover:bg-surface-muted hover:text-ink',

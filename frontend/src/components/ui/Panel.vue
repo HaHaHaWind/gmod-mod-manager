@@ -11,7 +11,9 @@ withDefaults(
 </script>
 
 <template>
-  <section class="overflow-hidden rounded-2xl border border-line bg-surface shadow-card">
+  <section
+    class="overflow-hidden rounded-xl border border-card-border bg-surface shadow-card transition-[box-shadow] duration-[400ms] ease-in-out hover:shadow-card-hover"
+  >
     <header
       v-if="title || $slots.actions"
       class="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 border-b border-line px-5 py-3.5"

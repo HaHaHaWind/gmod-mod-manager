@@ -1,9 +1,11 @@
 # GMod 模组管理器 · 第二轮改版说明：仪表盘化与暗色主题
 
-> 续接《[FRONTEND_REDESIGN.md](../FRONTEND_REDESIGN.md)》(第一轮产品化改版)。
+> 续接《[FRONTEND_REDESIGN.md](../../FRONTEND_REDESIGN.md)》(第一轮产品化改版)。
 > 触发原因:用户希望获得 [MCSManager](https://github.com/MCSManager/MCSManager) 式的**完整仪表盘观感**。
 > 范围:仅修改 `frontend/`;后端零改动;未新增任何依赖。
 > 验证:`npm run build`(vue-tsc + vite)通过。
+>
+> **续篇**:本轮之后追加"组件质感移植 + 动效/进度条"视觉增强,详见 [MOTION_AND_TEXTURE.md](./MOTION_AND_TEXTURE.md)。
 
 ---
 

@@ -371,8 +371,9 @@ const crumbs = computed<{ label: string; to?: unknown }[]>(() => {
           <Menu class="size-4" aria-hidden="true" />
         </Button>
 
-        <!-- 面包屑 -->
-        <nav aria-label="面包屑" class="flex min-w-0 items-center gap-1.5 text-[13.5px]">
+        <!-- 面包屑:路由变化时轻微淡入,避免标题瞬间跳变 -->
+        <Transition name="crumb" mode="out-in">
+          <nav :key="String(route.name)" aria-label="面包屑" class="flex min-w-0 items-center gap-1.5 text-[13.5px]">
           <template v-for="(c, i) in crumbs" :key="i">
             <span v-if="i > 0" class="text-ink-4" aria-hidden="true">/</span>
             <RouterLink
@@ -391,7 +392,8 @@ const crumbs = computed<{ label: string; to?: unknown }[]>(() => {
               {{ c.label }}
             </span>
           </template>
-        </nav>
+          </nav>
+        </Transition>
         <span class="spacer" />
 
         <div class="hidden items-center gap-1.5 md:flex">
@@ -461,7 +463,9 @@ const crumbs = computed<{ label: string; to?: unknown }[]>(() => {
       <main class="flex-1 px-4 py-6 lg:px-8 lg:py-8">
         <div class="mx-auto w-full max-w-[1400px]">
           <RouterView v-slot="{ Component }">
-            <component :is="Component" :key="route.fullPath" class="animate-rise" />
+            <Transition name="page" mode="out-in">
+              <component :is="Component" :key="route.fullPath" />
+            </Transition>
           </RouterView>
         </div>
       </main>

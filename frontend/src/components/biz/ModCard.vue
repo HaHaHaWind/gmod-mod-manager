@@ -37,10 +37,10 @@ const workshopUrl = computed(
 
 <template>
   <article
-    class="group relative flex flex-col overflow-hidden rounded-2xl border bg-surface shadow-card transition-[transform,border-color,box-shadow] duration-200"
+    class="group relative flex flex-col overflow-hidden rounded-xl border bg-surface shadow-card transition-[box-shadow] duration-[400ms] ease-in-out"
     :class="selected
       ? 'border-accent ring-2 ring-accent/20'
-      : 'border-line hover:-translate-y-1 hover:border-accent-line hover:shadow-pop'"
+      : 'border-card-border hover:shadow-card-hover'"
   >
     <!-- 封面:16:9,加载失败时回退占位 -->
     <button
@@ -55,7 +55,7 @@ const workshopUrl = computed(
         :alt="title"
         loading="lazy"
         decoding="async"
-        class="size-full object-cover transition-transform duration-200 group-hover:scale-[1.04]"
+        class="size-full object-cover transition-[transform,filter] duration-[400ms] ease-spring group-hover:rotate-1 group-hover:scale-[1.06] group-hover:brightness-110"
         @error="failed = true"
       >
       <span v-else class="flex size-full flex-col items-center justify-center gap-1.5 text-ink-4">
