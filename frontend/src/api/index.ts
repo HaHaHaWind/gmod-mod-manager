@@ -29,11 +29,19 @@ export interface ModListQuery {
   inventory_state?: string
   desired_state?: string
   apply_state?: string
+  category?: string
   page?: number
   page_size?: number
 }
 export const apiModList = (query: ModListQuery = {}) =>
   get<PageResp<ModView>>('/api/mods', query as Record<string, string | number>)
+export interface CategoryOption {
+  value: string
+  label: string
+  count: number
+}
+export const apiModCategories = () =>
+  get<{ items: CategoryOption[] }>('/api/mods/categories')
 export const apiModDetail = (wid: string) => get<ModDetail>(`/api/mods/${wid}`)
 export const apiStartScan = (deep: boolean) =>
   post<{ task: TaskView }>('/api/mods/scan', { deep })

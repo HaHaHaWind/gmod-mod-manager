@@ -18,6 +18,7 @@ from sqlalchemy.orm import Session
 from .. import constants as C
 from ..config import Settings
 from ..models.entities import CollectionSnapshot, Mod, utcnow
+from .categories import derive_category
 
 _TAG_RE = re.compile(r"<[^>]+>")
 _TAG_SAFE_RE = re.compile(r"\[(/?[a-zA-Z0-9_]+)[^\]]*\]")
@@ -102,6 +103,7 @@ def apply_details(mod: Mod, d: dict) -> None:
     mod.author_name = (d.get("author") or "").strip()[:256]
     mod.description = _clean_description(d.get("description") or "")
     mod.tags = [t.get("tag", "") for t in (d.get("tags") or []) if isinstance(t, dict)]
+    mod.category = derive_category(mod.tags)
     mod.preview_url = (d.get("preview_url") or "")[:1024]
     mod.remote_file_size = int(d.get("file_size") or 0) or None
     mod.time_published = int(d.get("time_created") or 0) or None

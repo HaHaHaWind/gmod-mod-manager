@@ -23,6 +23,8 @@ export interface ModView {
   author_name: string | null
   author_steamid: string | null
   tags: string[]
+  category: string
+  category_zh: string
   preview_url: string | null
   size_bytes: number
   file_count: number

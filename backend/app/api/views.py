@@ -6,6 +6,7 @@ from datetime import datetime
 from .. import constants as C
 from ..models import (AuditLog, ChangePlan, Mod, ModFile, PlanItem, Task,
                       TrashEntry)
+from ..services import categories
 
 
 def dt(v: datetime | None) -> str | None:
@@ -25,6 +26,8 @@ def mod_view(m: Mod) -> dict:
         "author_name": m.author_name,
         "author_steamid": m.author_steamid,
         "tags": m.tags or [],
+        "category": m.category or categories.OTHER,
+        "category_zh": categories.category_zh(m.category),
         "preview_url": m.preview_url,
         "size_bytes": m.size_bytes,
         "file_count": m.file_count,

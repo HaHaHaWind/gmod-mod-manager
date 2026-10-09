@@ -56,6 +56,12 @@ const workshopUrl = computed(
       <Badge v-if="mod.requires_restart" variant="warning" class="absolute left-2 top-2 shadow-sm">
         待重启
       </Badge>
+      <span
+        v-if="mod.category_zh"
+        class="absolute bottom-2 left-2 rounded-md bg-ink/55 px-1.5 py-0.5 text-[11px] font-medium text-white backdrop-blur-sm"
+      >
+        {{ mod.category_zh }}
+      </span>
     </button>
 
     <button

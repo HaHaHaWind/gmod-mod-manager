@@ -141,6 +141,7 @@ const metaItems = computed<SpecItem[]>(() => {
   const m = mod.value
   if (!m) return []
   return [
+    { label: '类型', value: m.category_zh || m.category || '未分类' },
     {
       label: '抓取状态',
       value: m.metadata_zh || m.metadata_state || '未抓取',

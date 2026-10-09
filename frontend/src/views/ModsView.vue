@@ -2,7 +2,7 @@
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { Plus, RefreshCw, ScanLine, Search, X } from 'lucide-vue-next'
-import { apiCreatePlan, apiModList, apiRefreshMeta, apiStartScan } from '@/api'
+import { apiCreatePlan, apiModCategories, apiModList, apiRefreshMeta, apiStartScan } from '@/api'
 import type { ModListQuery, PlanItemInput } from '@/api'
 import { ApiRequestError } from '@/api/client'
 import type { ModView } from '@/api/types'
@@ -31,6 +31,8 @@ const q = ref('')
 const inventoryState = ref('')
 const desiredState = ref('')
 const applyState = ref('')
+const category = ref('')
+const categoryOptions = ref<{ value: string; label: string }[]>([{ value: '', label: '类型:全部' }])
 const selected = ref<string[]>([])
 const acting = ref(false)
 
@@ -65,6 +67,7 @@ async function load() {
       inventory_state: inventoryState.value || undefined,
       desired_state: desiredState.value || undefined,
       apply_state: applyState.value || undefined,
+      category: category.value || undefined,
       page: page.value,
       page_size: pageSize.value,
     }
@@ -80,12 +83,19 @@ async function load() {
   }
 }
 
+async function loadCategories() {
+  const resp = await apiModCategories().catch(() => null)
+  if (!resp) return
+  categoryOptions.value = [{ value: '', label: '类型:全部' },
+    ...resp.items.map((c) => ({ value: c.value, label: `${c.label} (${c.count})` }))]
+}
+
 let searchTimer: number | undefined
 watch(q, () => {
   window.clearTimeout(searchTimer)
   searchTimer = window.setTimeout(() => { page.value = 1; load() }, 400)
 })
-watch([inventoryState, desiredState, applyState], () => { page.value = 1; load() })
+watch([inventoryState, desiredState, applyState, category], () => { page.value = 1; load() })
 watch(pageSize, () => { page.value = 1; load() })
 watch(page, load)
 
@@ -231,7 +241,7 @@ async function submitPlan() {
   }
 }
 
-onMounted(load)
+onMounted(() => { load(); loadCategories() })
 </script>
 
 <template>
@@ -244,6 +254,7 @@ onMounted(load)
       <Select v-model="inventoryState" :options="inventoryOptions" class="w-[136px]" aria-label="清单状态筛选" />
       <Select v-model="desiredState" :options="desiredOptions" class="w-[136px]" aria-label="期望状态筛选" />
       <Select v-model="applyState" :options="applyOptions" class="w-[164px]" aria-label="应用状态筛选" />
+      <Select v-model="category" :options="categoryOptions" class="w-[152px]" aria-label="类型筛选" />
       <span class="spacer" />
       <Button :loading="scanning" :disabled="system.readOnly" @click="startScan">
         <ScanLine class="size-3.5" aria-hidden="true" />

@@ -61,6 +61,7 @@ class Mod(Base):
     author_steamid: Mapped[str] = mapped_column(String(32), default="")
     description: Mapped[str] = mapped_column(Text, default="")
     tags: Mapped[list] = mapped_column(JSON, default=list)
+    category: Mapped[str] = mapped_column(String(32), default="Other", index=True)  # 由 tags 推导的主类型
     preview_url: Mapped[str] = mapped_column(String(1024), default="")
     remote_file_size: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
     time_published: Mapped[int | None] = mapped_column(BigInteger, nullable=True)

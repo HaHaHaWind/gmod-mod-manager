@@ -5,7 +5,7 @@ from urllib.parse import quote
 
 from fastapi import APIRouter, Depends, Query, Request
 from fastapi.responses import FileResponse, RedirectResponse
-from sqlalchemy import or_
+from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
 
 from ...config import get_settings
@@ -13,7 +13,7 @@ from ...db import get_db
 from ...errors import not_found
 from ...models import Mod, ModFile
 from ...schemas.api import MetaRefreshIn, ScanIn
-from ...services import audit, preview_store, scan, steam
+from ...services import audit, categories, preview_store, scan, steam
 from ...workers.runner import enqueue_task, get_worker
 from ..deps import request_ip, require_user, require_user_csrf
 from ..views import mod_detail, mod_view, task_view
@@ -28,6 +28,7 @@ def list_mods(db: Session = Depends(get_db),
               inventory_state: str = Query(default=""),
               desired_state: str = Query(default=""),
               apply_state: str = Query(default=""),
+              category: str = Query(default=""),
               page: int = Query(default=1, ge=1),
               page_size: int = Query(default=50, ge=1, le=200)):
     query = db.query(Mod)
@@ -44,11 +45,26 @@ def list_mods(db: Session = Depends(get_db),
         query = query.filter(Mod.desired_state == desired_state)
     if apply_state:
         query = query.filter(Mod.apply_state == apply_state)
+    if category:
+        query = query.filter(Mod.category == category)
     total = query.count()
     rows = (query.order_by(Mod.title_remote, Mod.workshop_id)
             .offset((page - 1) * page_size).limit(page_size).all())
     return {"items": [mod_view(m) for m in rows], "total": total,
             "page": page, "page_size": page_size}
+
+
+@router.get("/categories")
+def list_categories(db: Session = Depends(get_db), _=Depends(require_user)):
+    """类型清单 + 数量,供列表筛选下拉使用(仅返回有 Mod 的类型)。"""
+    counts = {c or categories.OTHER: n
+              for c, n in db.query(Mod.category, func.count()).group_by(Mod.category).all()}
+    items = [{"value": c, "label": categories.category_zh(c), "count": counts[c]}
+             for c in categories.CATEGORY_ORDER if counts.get(c)]
+    for c, n in counts.items():
+        if c not in categories.CATEGORY_ORDER and n:
+            items.append({"value": c, "label": categories.category_zh(c), "count": n})
+    return {"items": items}
 
 
 @router.get("/{wid}/preview")
