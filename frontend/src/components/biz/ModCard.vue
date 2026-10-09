@@ -151,7 +151,7 @@ const workshopUrl = computed(
             <DropdownMenuContent
               align="end"
               :side-offset="6"
-              class="z-50 min-w-44 animate-ui-in rounded-xl border border-line bg-surface p-1 shadow-pop"
+              class="z-50 min-w-44 data-[state=open]:animate-ui-in data-[state=closed]:animate-ui-out rounded-xl border border-line bg-surface p-1 shadow-pop"
             >
               <DropdownMenuItem
                 class="flex cursor-pointer select-none items-center gap-2 rounded-md px-2 py-1.5 text-[13px] text-ink-2 outline-none data-[highlighted]:bg-surface-muted data-[disabled]:cursor-not-allowed data-[disabled]:opacity-50"

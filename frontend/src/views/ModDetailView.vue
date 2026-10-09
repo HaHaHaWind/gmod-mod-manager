@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch, type Component } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch, type Component } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import {
   ArrowLeft, ExternalLink, FolderOpen, ImageOff, Info, RefreshCw, Trash2, Wrench,
@@ -64,6 +64,33 @@ const activeTab = ref<TabKey>(normalizeTab(route.query.tab))
 watch(activeTab, (t) => {
   router.replace({ query: { ...route.query, tab: t === 'about' ? undefined : t } }).catch(() => {})
 })
+
+/* ---------- 页签滑动指示条:测量当前按钮位置,随切换平滑移动 ---------- */
+const tablistEl = ref<HTMLElement | null>(null)
+const tabEls = new Map<TabKey, HTMLElement>()
+const indicator = ref({ left: 12, width: 0, ready: false })
+let tabRo: ResizeObserver | undefined
+function setTabRef(key: TabKey) {
+  return (el: unknown) => {
+    if (el instanceof HTMLElement) tabEls.set(key, el)
+    else tabEls.delete(key)
+  }
+}
+function updateIndicator() {
+  const el = tabEls.get(activeTab.value)
+  if (!el) return
+  indicator.value = { left: el.offsetLeft, width: el.offsetWidth, ready: true }
+}
+watch(activeTab, () => nextTick(updateIndicator))
+watch(mod, () => nextTick(updateIndicator))
+onMounted(() => {
+  updateIndicator()
+  if (tablistEl.value && typeof ResizeObserver !== 'undefined') {
+    tabRo = new ResizeObserver(updateIndicator)
+    tabRo.observe(tablistEl.value)
+  }
+})
+onBeforeUnmount(() => tabRo?.disconnect())
 
 /* ---------- 返回:优先回退历史,直接打开 URL 时回模组库 ---------- */
 function goBack() {
@@ -345,16 +372,17 @@ onMounted(load)
 
       <!-- 页签:简介 / 文件清单 / 技术详情 -->
       <section class="overflow-hidden rounded-2xl border border-line bg-surface shadow-card">
-        <div role="tablist" aria-label="模组详情分区" class="flex gap-1 border-b border-line px-3">
+        <div ref="tablistEl" role="tablist" aria-label="模组详情分区" class="relative flex gap-1 border-b border-line px-3">
           <button
             v-for="t in tabDefs"
             :key="t.key"
+            :ref="setTabRef(t.key)"
             role="tab"
             :aria-selected="activeTab === t.key"
-            class="-mb-px flex items-center gap-1.5 border-b-2 px-3 py-2.5 text-[13px] font-medium transition-colors duration-150"
+            class="flex items-center gap-1.5 px-3 py-2.5 text-[13px] font-medium transition-colors duration-150"
             :class="activeTab === t.key
-              ? 'border-accent text-accent-strong'
-              : 'border-transparent text-ink-3 hover:border-line-strong hover:text-ink'"
+              ? 'text-accent-strong'
+              : 'text-ink-3 hover:text-ink'"
             @click="activeTab = t.key"
           >
             <component :is="t.icon" class="size-4" aria-hidden="true" />
@@ -363,6 +391,11 @@ onMounted(load)
               {{ mod.files.length }}
             </span>
           </button>
+          <span
+            aria-hidden="true"
+            class="pointer-events-none absolute bottom-0 h-[2px] rounded-full bg-accent transition-[left,width,opacity] duration-300 ease-out"
+            :style="{ left: `${indicator.left}px`, width: `${indicator.width}px`, opacity: indicator.ready ? 1 : 0 }"
+          />
         </div>
 
         <!-- 简介:纯文本渲染,不解析富文本 -->

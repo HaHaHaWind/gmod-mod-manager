@@ -52,7 +52,7 @@ const itemValue = (v: string) => (v === '' ? EMPTY : v)
       <SelectContent
         position="popper"
         :side-offset="4"
-        class="z-50 max-h-64 min-w-[var(--reka-select-trigger-width)] animate-ui-in overflow-hidden rounded-xl border border-line bg-surface shadow-pop"
+        class="z-50 max-h-64 min-w-[var(--reka-select-trigger-width)] data-[state=open]:animate-ui-in data-[state=closed]:animate-ui-out overflow-hidden rounded-xl border border-line bg-surface shadow-pop"
       >
         <SelectViewport class="p-1">
           <SelectItem

@@ -182,7 +182,7 @@ const crumbs = computed<{ label: string; to?: unknown }[]>(() => {
             <DropdownMenuPortal>
               <DropdownMenuContent
                 :side-offset="6"
-                class="z-50 min-w-40 animate-ui-in rounded-xl border border-line bg-surface p-1 shadow-pop"
+                class="z-50 min-w-40 data-[state=open]:animate-ui-in data-[state=closed]:animate-ui-out rounded-xl border border-line bg-surface p-1 shadow-pop"
               >
                 <DropdownMenuLabel class="px-2 py-1.5 text-[12px] text-ink-4">操作记录</DropdownMenuLabel>
                 <DropdownMenuSeparator class="my-1 h-px bg-line" />
@@ -421,8 +421,10 @@ const crumbs = computed<{ label: string; to?: unknown }[]>(() => {
           :title="theme === 'dark' ? '切换到亮色模式' : '切换到暗色模式'"
           @click="toggleTheme"
         >
-          <Sun v-if="theme === 'dark'" class="size-4" aria-hidden="true" />
-          <Moon v-else class="size-4" aria-hidden="true" />
+          <Transition name="theme-icon" mode="out-in">
+            <Sun v-if="theme === 'dark'" key="sun" class="size-4" aria-hidden="true" />
+            <Moon v-else key="moon" class="size-4" aria-hidden="true" />
+          </Transition>
         </button>
 
         <DropdownMenuRoot>
@@ -442,7 +444,7 @@ const crumbs = computed<{ label: string; to?: unknown }[]>(() => {
             <DropdownMenuContent
               align="end"
               :side-offset="6"
-              class="z-50 min-w-44 animate-ui-in rounded-xl border border-line bg-surface p-1 shadow-pop"
+              class="z-50 min-w-44 data-[state=open]:animate-ui-in data-[state=closed]:animate-ui-out rounded-xl border border-line bg-surface p-1 shadow-pop"
             >
               <DropdownMenuLabel class="px-2 py-1.5 text-[12px] text-ink-4">
                 {{ auth.isAdmin ? '管理员' : '普通用户' }}

@@ -50,11 +50,18 @@ const emit = defineEmits<{
     <template #icon><Boxes class="size-5" aria-hidden="true" /></template>
   </EmptyState>
 
-  <div v-else class="grid grid-cols-[repeat(auto-fill,minmax(250px,1fr))] gap-5">
+  <!-- TransitionGroup:筛选/翻页时新卡 stagger 入场,留存卡 FLIP 平滑补位 -->
+  <TransitionGroup
+    v-else
+    name="card"
+    tag="div"
+    class="relative grid grid-cols-[repeat(auto-fill,minmax(250px,1fr))] gap-5"
+  >
     <ModCard
-      v-for="m in mods"
+      v-for="(m, i) in mods"
       :key="m.workshop_id"
       :mod="m"
+      :style="{ '--stagger': `${Math.min(i * 30, 270)}ms` }"
       :selected="selected.includes(m.workshop_id)"
       :read-only="readOnly"
       @open="emit('open', m.workshop_id)"
@@ -64,5 +71,5 @@ const emit = defineEmits<{
       @remove="emit('remove', m.workshop_id)"
       @refresh="emit('refresh', m.workshop_id)"
     />
-  </div>
+  </TransitionGroup>
 </template>

@@ -17,7 +17,7 @@ withDefaults(
         <TooltipContent
           :side="side"
           :side-offset="6"
-          class="z-[60] max-w-xs animate-ui-in rounded-lg bg-[#1b232e] px-2.5 py-1.5 text-[11.5px] leading-4 text-white shadow-pop"
+          class="z-[60] max-w-xs data-[state=open]:animate-ui-in data-[state=closed]:animate-ui-out rounded-lg bg-[#1b232e] px-2.5 py-1.5 text-[11.5px] leading-4 text-white shadow-pop"
         >
           {{ content }}
         </TooltipContent>

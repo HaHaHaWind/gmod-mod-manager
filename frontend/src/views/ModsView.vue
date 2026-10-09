@@ -347,7 +347,7 @@ onMounted(() => {
             <DropdownMenuContent
               align="end"
               :side-offset="6"
-              class="z-50 min-w-44 animate-ui-in rounded-xl border border-line bg-surface p-1 shadow-pop"
+              class="z-50 min-w-44 data-[state=open]:animate-ui-in data-[state=closed]:animate-ui-out rounded-xl border border-line bg-surface p-1 shadow-pop"
             >
               <DropdownMenuItem
                 class="flex cursor-pointer select-none flex-col items-start gap-0.5 rounded-md px-2.5 py-2 text-[13px] text-ink-2 outline-none data-[highlighted]:bg-surface-muted"
@@ -386,7 +386,7 @@ onMounted(() => {
           <PopoverContent
             align="end"
             :side-offset="6"
-            class="z-50 w-64 animate-ui-in space-y-2.5 rounded-xl border border-line bg-surface p-3 shadow-pop"
+            class="z-50 w-64 data-[state=open]:animate-ui-in data-[state=closed]:animate-ui-out space-y-2.5 rounded-xl border border-line bg-surface p-3 shadow-pop"
           >
             <p class="text-[13px] font-medium text-ink">状态筛选</p>
             <Select v-model="inventoryState" :options="inventoryOptions" aria-label="文件状态筛选" />

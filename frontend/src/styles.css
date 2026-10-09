@@ -64,6 +64,11 @@
   --animate-ui-in: ui-in 260ms cubic-bezier(0.645, 0.045, 0.355, 1);
   --animate-ui-out: ui-out 140ms ease-in;
   --animate-rise: rise 320ms cubic-bezier(0.645, 0.045, 0.355, 1) both;
+  /* 模态专用:内容面板带居中位移,通用 ui-in 的 transform 会覆盖 -translate-x/y-1/2 */
+  --animate-modal-in: modal-in 240ms cubic-bezier(0.16, 1, 0.3, 1);
+  --animate-modal-out: modal-out 150ms ease-in;
+  /* 遮罩层专用:纯淡入淡出,不带位移缩放 */
+  --animate-fade-out: fade-out 140ms ease-in;
 }
 
 /* ---------- 亮色(默认) ---------- */
@@ -158,6 +163,61 @@ html.dark {
 }
 @keyframes shimmer {
   100% { transform: translateX(100%); }
+}
+
+@keyframes modal-in {
+  from { opacity: 0; transform: translate(-50%, -48%) scale(0.97); }
+  to { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+}
+@keyframes modal-out {
+  from { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+  to { opacity: 0; transform: translate(-50%, -48.5%) scale(0.98); }
+}
+@keyframes fade-out {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+
+/* ---------- 浮层关闭动画:reka-ui 会等待 closed 动画结束再卸载 ---------- */
+.pop-closed-out {
+  &[data-state='closed'] {
+    animation: ui-out 140ms ease-in;
+  }
+}
+
+/* ---------- 模组卡片 TransitionGroup:入场 stagger + FLIP 补位 ---------- */
+.card-enter-from {
+  opacity: 0;
+  transform: translateY(10px) scale(0.98);
+}
+.card-enter-active {
+  transition:
+    opacity 300ms cubic-bezier(0.16, 1, 0.3, 1),
+    transform 300ms cubic-bezier(0.16, 1, 0.3, 1);
+  transition-delay: var(--stagger, 0ms);
+}
+/* 移除的卡片立即让位,由留存卡片的 .card-move FLIP 过渡补位 */
+.card-leave-active {
+  display: none;
+}
+.card-move {
+  transition: transform 320ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* ---------- 主题切换图标:旋转缩放交叉 ---------- */
+.theme-icon-enter-active,
+.theme-icon-leave-active {
+  transition:
+    opacity 180ms ease,
+    transform 200ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+.theme-icon-enter-from {
+  opacity: 0;
+  transform: rotate(-90deg) scale(0.6);
+}
+.theme-icon-leave-to {
+  opacity: 0;
+  transform: rotate(90deg) scale(0.6);
 }
 
 /* ---------- 路由切换过渡:出场快速上移淡出,入场上滑淡入(缓出曲线) ---------- */
