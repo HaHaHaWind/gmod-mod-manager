@@ -88,8 +88,15 @@ async function quickPlan(action: Action) {
 const stateItems = computed<SpecItem[]>(() => {
   const m = mod.value
   if (!m) return []
+  const invReason = typeof m.inventory_detail?.reason === 'string' ? m.inventory_detail.reason : ''
+  const invWarning = typeof m.inventory_detail?.warning === 'string' ? m.inventory_detail.warning : ''
   return [
-    { label: '清单', badge: m.inventory_zh || m.inventory_state, tone: inventoryTone(m.inventory_state) },
+    {
+      label: '清单',
+      badge: m.inventory_zh || m.inventory_state,
+      tone: inventoryTone(m.inventory_state),
+      note: m.inventory_state === 'invalid' && invReason ? invReason : (invWarning || undefined),
+    },
     { label: '期望', value: m.desired_zh || m.desired_state },
     { label: '应用', badge: m.apply_zh || m.apply_state, tone: applyTone(m.apply_state) },
     { label: '运行时', value: m.runtime_zh || m.runtime_state },

@@ -45,6 +45,7 @@ class CacheFind:
     workshop_id: str
     directory: Path
     gmas: list[GmaFound] = field(default_factory=list)
+    non_gma: list[str] = field(default_factory=list)  # 疑似 addon 但文件头非 GMAD(如压缩内容)
 
 
 @dataclass
@@ -93,20 +94,31 @@ class ScanReport:
 
 # ---------- 发现 ----------
 
-def _find_gmas(directory: Path) -> list[GmaFound]:
-    """在 ID 目录中定位 .gma:优先标准布局 garrysmod/addons/,退化为一层查找。"""
+def _find_gmas(directory: Path) -> tuple[list[GmaFound], list[str]]:
+    """在 ID 目录中定位 GMA:优先标准布局 garrysmod/addons/,退化为一层查找。
+
+    老的创意工坊条目(legacy)在缓存里以 .bin 后缀存放,内容为 GMA(可能经
+    LZMA 压缩),因此除 .gma 外也接受内容确为 GMA 的 .bin;其余 .bin 记入
+    non_gma,供上层给出准确原因,而不是笼统的"未找到 .gma 文件"。
+    """
     found: list[GmaFound] = []
+    non_gma: list[str] = []
     std = directory / "garrysmod" / "addons"
     search_dirs = [std] if std.is_dir() else [directory]
     for base in search_dirs:
         try:
             for p in base.iterdir():
-                if p.suffix.lower() == ".gma" and p.is_file() and not p.is_symlink():
+                if p.is_symlink() or not p.is_file():
+                    continue
+                ext = p.suffix.lower()
+                if ext == ".gma" or (ext == ".bin" and gma.is_gma_package(p)):
                     st = p.stat()
                     found.append(GmaFound(path=p, size=st.st_size, mtime=st.st_mtime))
+                elif ext == ".bin":
+                    non_gma.append(p.name)
         except OSError as e:
             found.append(GmaFound(path=base / f"<io-error:{e.errno}>", size=-1, mtime=0))
-    return found
+    return found, non_gma
 
 
 def discover_cache(settings: Settings, report: ScanReport) -> list[CacheFind]:
@@ -136,8 +148,8 @@ def discover_cache(settings: Settings, report: ScanReport) -> list[CacheFind]:
         if int(child.name) > 2**63 - 1:
             report.anomalies.append(f"缓存目录 ID 超出 int64 范围,已跳过:{child.name}")
             continue
-        gf = _find_gmas(child)
-        finds.append(CacheFind(workshop_id=child.name, directory=child, gmas=gf))
+        gf, non_gma = _find_gmas(child)
+        finds.append(CacheFind(workshop_id=child.name, directory=child, gmas=gf, non_gma=non_gma))
         report.cache_ids.append(child.name)
     return finds
 
@@ -271,7 +283,14 @@ def run_full_scan(session: Session, settings: Settings, deep: bool = True) -> Sc
                 report.created.append(wid)
             mod.inventory_state = C.InventoryState.INVALID.value
             detail = dict(mod.inventory_detail or {})
-            detail["reason"] = "目录存在但未找到 .gma 文件" if not find.gmas else "读取 .gma 文件信息失败"
+            if find.gmas:
+                detail["reason"] = "读取 .gma 文件信息失败"
+            elif find.non_gma:
+                shown = "、".join(find.non_gma[:3])
+                more = "" if len(find.non_gma) <= 3 else f" 等 {len(find.non_gma)} 个"
+                detail["reason"] = f"缓存内含 .bin 文件,但内容既非 GMAD 也非 LZMA 压缩的 GMA(可能不是 addon 内容):{shown}{more}"
+            else:
+                detail["reason"] = "目录存在但未找到 GMA 文件"
             detail["gmas"] = [g.path.name for g in find.gmas]
             mod.inventory_detail = detail
             mod.last_scan_at = now
@@ -345,6 +364,10 @@ def run_full_scan(session: Session, settings: Settings, deep: bool = True) -> Sc
         detail["conflicts"] = _conflicts(mod, sources, wid in ids_in_file)
         if meta:
             detail["gma_meta"] = gma.summarize(meta)
+            if meta.has_trailer_crc:
+                detail.pop("warning", None)
+            else:
+                detail["warning"] = "GMA 缺少整包尾部 CRC(各条目 CRC 校验通过,内容完整,可正常使用)"
         mod.inventory_detail = detail
 
         # 部署副本源变更检测(本地受管模式;未 flush 的新对象列为 None,防御取值)

@@ -11,12 +11,18 @@
 
 防御性设计:所有长度/条目数有上限;size 必须非负且不越界;包内路径解包前经
 `paths.gma_rel_path_safe` 校验。本模块不信任任何输入文件。
+
+压缩兼容:创意工坊缓存里的 legacy 条目以 `*_legacy.bin` 存放,内容为
+LZMA-alone 压缩的 GMA(`5d ...` 开头,解压后即 `GMAD`)。读取路径统一走
+`_open_content`,对明文与压缩内容透明。
 """
 from __future__ import annotations
 
+import lzma
 import os
 import struct
 import zlib
+from contextlib import contextmanager
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -61,6 +67,7 @@ class GmaMetadata:
     total_size: int = 0        # 文件数据总字节数
     body_end: int = 0          # 文件数据结束后应紧邻尾部 CRC 的偏移
     file_size: int = 0         # GMA 文件实际大小
+    has_trailer_crc: bool = True  # 是否含整包尾部 CRC32(部分 addon 发布时未写)
     crc_ok: bool | None = None  # None=未校验
 
 
@@ -82,14 +89,94 @@ def _read_cstring(fh, limit: int = MAX_STRING_BYTES) -> str:
         raise GmaError("元数据字符串解码失败")
 
 
-def read_gma_metadata(path: Path, verify_crc: bool = False) -> GmaMetadata:
-    """只读取头部与文件表,不读取文件数据块。结构损坏抛 GmaError。"""
-    file_size = path.stat().st_size
-    if file_size < _HEADER.size + 5:
-        raise GmaError("文件过小,不是有效的 GMA 包")
+_LZMA_HEAD = 13  # LZMA-alone 头部长度:1 字节属性 + 4 字节字典大小 + 8 字节未压缩长度
+
+
+def _looks_like_lzma(head: bytes) -> bool:
+    """粗判是否为 LZMA-alone 流;真实与否由解压时的校验兜底。"""
+    if len(head) < 5:
+        return False
+    props = head[0]
+    if props >= 9 * 5 * 5:  # lc/lp/pb 编码的合法上界
+        return False
+    dict_size = int.from_bytes(head[1:5], "little")
+    return 0 < dict_size <= 0xFFFFFFFF
+
+
+def _lzma_declared_size(head: bytes) -> int | None:
+    """LZMA-alone 头部声明的未压缩长度;流式(未知)返回 None。"""
+    if len(head) < _LZMA_HEAD:
+        return None
+    n = int.from_bytes(head[5:_LZMA_HEAD], "little")
+    return None if n == 0xFFFFFFFFFFFFFFFF else n
+
+
+@contextmanager
+def _open_content(path: Path):
+    """按内容打开 GMA 读取流,产出 (fh, size)。
+
+    - 明文 GMA:返回真实文件句柄(可 seek),size 为文件字节数。
+    - LZMA-alone 压缩的 GMA:返回解压流(仅顺序读),size 为解压后长度(未知为 -1)。
+    其余内容抛 GmaError。
+    """
+    raw = open(path, "rb")
     try:
-        with open(path, "rb") as fh:
-            magic, version, steamid, ts = _HEADER.unpack(fh.read(_HEADER.size))
+        head = raw.read(_LZMA_HEAD)
+        raw.seek(0)
+        if head[:len(MAGIC)] == MAGIC:
+            yield raw, path.stat().st_size
+            return
+        if not _looks_like_lzma(head):
+            raise GmaError("魔数不符:不是 GMA 包")
+        size = _lzma_declared_size(head)
+        try:
+            stream = lzma.LZMAFile(raw, format=lzma.FORMAT_ALONE)
+        except lzma.LZMAError as e:
+            raise GmaError(f"内容既不是 GMAD,也不是有效的 LZMA 压缩包:{e}") from e
+        with stream:
+            try:
+                yield stream, (-1 if size is None else size)
+            except (lzma.LZMAError, EOFError) as e:
+                # 解压流损坏或提前结束(EOFError 由压缩流读取层抛出)
+                raise GmaError(f"LZMA 解压失败:{e}") from e
+    finally:
+        raw.close()
+
+
+def is_gma_package(path: Path) -> bool:
+    """判断文件是否为 GMA 包(明文 GMAD 或 LZMA 压缩的 GMA)。
+
+    只读取/解压极短的头部,用于扫描阶段的快速识别。
+    """
+    try:
+        with _open_content(path) as (fh, _size):
+            return fh.read(len(MAGIC)) == MAGIC
+    except (GmaError, OSError):
+        return False
+
+
+def _discard(fh, n: int) -> None:
+    """顺序丢弃 n 字节(解压流不可 seek)。"""
+    while n > 0:
+        chunk = fh.read(min(CHUNK, n))
+        if not chunk:
+            raise GmaError("文件被截断(数据区缺失)")
+        n -= len(chunk)
+
+
+def read_gma_metadata(path: Path, verify_crc: bool = False) -> GmaMetadata:
+    """只读取头部与文件表,不读取文件数据块。结构损坏抛 GmaError。
+
+    透明支持 LZMA 压缩的 GMA(legacy 缓存中的 *_legacy.bin)。
+    """
+    try:
+        with _open_content(path) as (fh, file_size):
+            if 0 <= file_size < _HEADER.size + 5:
+                raise GmaError("文件过小,不是有效的 GMA 包")
+            raw = fh.read(_HEADER.size)
+            if len(raw) < _HEADER.size:
+                raise GmaError("文件在头部读取中意外结束(文件被截断)")
+            magic, version, steamid, ts = _HEADER.unpack(raw)
             if magic != MAGIC:
                 raise GmaError("魔数不符:不是 GMA 包")
             if version > SUPPORTED_VERSION:
@@ -129,19 +216,23 @@ def read_gma_metadata(path: Path, verify_crc: bool = False) -> GmaMetadata:
                 if size < 0:
                     raise GmaError(f"条目 {name!r} 大小为负,文件损坏")
                 total += size
-                if total > file_size:
+                if file_size >= 0 and total > file_size:
                     raise GmaError("文件数据总量超过文件实际大小,文件被截断或损坏")
                 entries.append(GmaEntry(filename=name, size=size, crc32=crc))
 
             body_end = fh.tell()
-            # 数据区之后必须还有完整尾部 CRC(4 字节),否则文件被截断
-            if file_size < body_end + total + _U32.size:
-                raise GmaError("文件长度不足(数据区或尾部 CRC 缺失),文件被截断")
+            # 数据区必须完整(所有条目数据都在),否则判为截断;
+            # 尾部整包 CRC 缺失则容忍:各条目 CRC 已能独立证明内容完整,
+            # 实测存在发布时未写尾部 CRC 的合法 addon。
+            if file_size >= 0 and file_size < body_end + total:
+                raise GmaError("文件数据区不完整,文件被截断")
+            has_trailer_crc = file_size < 0 or file_size >= body_end + total + _U32.size
             meta = GmaMetadata(
                 version=version, steamid=steamid, timestamp=ts,
                 required_content=required, title=title, description=desc,
                 author=author, addon_version=addon_version, entries=entries,
                 total_size=total, body_end=body_end, file_size=file_size,
+                has_trailer_crc=has_trailer_crc,
             )
             if verify_crc:
                 meta.crc_ok = verify_gma_crc(path)
@@ -151,30 +242,37 @@ def read_gma_metadata(path: Path, verify_crc: bool = False) -> GmaMetadata:
 
 
 def verify_gma_crc(path: Path) -> bool:
-    """流式校验整个文件的 CRC32(尾部 u32)。O(文件大小),由用户显式触发。"""
+    """流式校验整个内容的 CRC32(尾部 u32)。O(内容大小),由用户显式触发。
+
+    对 LZMA 压缩的 GMA,CRC 针对解压后的内容计算。
+    """
     running = 0
-    remaining = path.stat().st_size
-    if remaining < 4:
+    tail = b""  # 始终滞后 4 字节,末尾即尾部 CRC
+    try:
+        with _open_content(path) as (fh, _size):
+            while True:
+                chunk = fh.read(CHUNK)
+                if not chunk:
+                    break
+                data = tail + chunk
+                if len(data) <= 4:
+                    tail = data
+                    continue
+                running = zlib.crc32(data[:-4], running)
+                tail = data[-4:]
+    except (GmaError, OSError):
         return False
-    with open(path, "rb") as fh:
-        while remaining > 4:
-            chunk = fh.read(min(CHUNK, remaining - 4))
-            if not chunk:
-                return False
-            running = zlib.crc32(chunk, running)
-            remaining -= len(chunk)
-        stored_raw = fh.read(4)
-    if len(stored_raw) < 4:
+    if len(tail) < 4:
         return False
-    (stored,) = _U32.unpack(stored_raw)
+    (stored,) = _U32.unpack(tail)
     return (stored & 0xFFFFFFFF) == (running & 0xFFFFFFFF)
 
 
 def iter_gma_payloads(path: Path):
     """顺序产出 (GmaEntry, bytes)。仅用于解包/预览小文件,不应整包载入内存。"""
     meta = read_gma_metadata(path)
-    with open(path, "rb") as fh:
-        fh.seek(meta.body_end)  # 数据区紧跟文件表之后
+    with _open_content(path) as (fh, _size):
+        _discard(fh, meta.body_end)  # 数据区紧跟文件表之后
         for entry in meta.entries:
             remaining = entry.size
             parts: list[bytes] = []
@@ -197,8 +295,8 @@ def extract_gma(path: Path, dest_dir: Path, on_progress=None) -> dict:
     dest_dir = Path(dest_dir)
     files = 0
     total_bytes = 0
-    with open(path, "rb") as fh:
-        fh.seek(meta.body_end)  # 数据区紧跟文件表之后
+    with _open_content(path) as (fh, _size):
+        _discard(fh, meta.body_end)  # 数据区紧跟文件表之后
         for idx, entry in enumerate(meta.entries):
             safe_rel = gma_rel_path_safe(entry.filename)
             target = dest_dir.joinpath(*safe_rel.split("/"))
@@ -250,4 +348,5 @@ def summarize(meta: GmaMetadata) -> dict:
         "entries": len(meta.entries),
         "total_size": meta.total_size,
         "crc_ok": meta.crc_ok,
+        "has_trailer_crc": meta.has_trailer_crc,
     }
