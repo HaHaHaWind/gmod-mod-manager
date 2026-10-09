@@ -64,7 +64,7 @@ const workshopUrl = computed(
       </span>
       <span
         v-if="mod.category_zh"
-        class="absolute bottom-2 left-2 rounded-md bg-ink/55 px-1.5 py-0.5 text-[12px] font-medium text-white backdrop-blur-sm"
+        class="absolute bottom-2 left-2 rounded-md bg-black/55 px-1.5 py-0.5 text-[12px] font-medium text-white backdrop-blur-sm"
       >
         {{ mod.category_zh }}
       </span>
@@ -76,7 +76,7 @@ const workshopUrl = computed(
       class="absolute right-2 top-2 z-10 flex size-6 items-center justify-center rounded-md border transition-colors"
       :class="selected
         ? 'border-accent bg-accent text-white'
-        : 'border-white/60 bg-ink/35 text-white/90 backdrop-blur-sm hover:bg-ink/55'"
+        : 'border-white/60 bg-black/45 text-white/90 backdrop-blur-sm hover:bg-black/60'"
       :aria-pressed="selected"
       :aria-label="selected ? '取消选择' : '选择该模组'"
       @click.stop="emit('toggle')"

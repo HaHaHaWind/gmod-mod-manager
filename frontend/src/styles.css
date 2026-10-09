@@ -3,43 +3,45 @@
 @import '@fontsource/ibm-plex-mono/400.css';
 @import '@fontsource/ibm-plex-mono/500.css';
 
+/* 暗色模式基于 html.dark class 切换(顶栏按钮控制,localStorage 记忆,首次跟随系统) */
+@custom-variant dark (&:where(.dark, .dark *));
+
 /* ============================================================
-   设计 token —— 模组管理工具视觉规范
-   背景 #F6F7F9 / 表面 #FFFFFF / 正文 #20242C / 辅助 #626B78
-   强调色 #3B6EF5;标题 24-28px、正文 14-15px、辅助 12-13px
+   设计 token —— 模组管理工具视觉规范(亮 / 暗双主题)
+   颜色 token 全部引用语义变量,切换 html.dark 即全局换肤
    ============================================================ */
-@theme {
+@theme inline {
   /* 中性面 */
-  --color-canvas: #f6f7f9;
-  --color-surface: #ffffff;
-  --color-surface-muted: #f1f3f6;
-  --color-surface-sunken: #e9ecf1;
-  --color-line: #e5e8ee;
-  --color-line-strong: #d2d8e2;
+  --color-canvas: var(--c-canvas);
+  --color-surface: var(--c-surface);
+  --color-surface-muted: var(--c-surface-muted);
+  --color-surface-sunken: var(--c-surface-sunken);
+  --color-line: var(--c-line);
+  --color-line-strong: var(--c-line-strong);
 
   /* 文本层级 */
-  --color-ink: #20242c;
-  --color-ink-2: #454e5c;
-  --color-ink-3: #626b78;
-  --color-ink-4: #99a2b0;
+  --color-ink: var(--c-ink);
+  --color-ink-2: var(--c-ink-2);
+  --color-ink-3: var(--c-ink-3);
+  --color-ink-4: var(--c-ink-4);
 
   /* 强调色:仅用于链接、状态与主操作 */
-  --color-accent: #3b6ef5;
-  --color-accent-strong: #2b5be0;
-  --color-accent-soft: #edf2fe;
-  --color-accent-line: #cad9fc;
+  --color-accent: var(--c-accent);
+  --color-accent-strong: var(--c-accent-strong);
+  --color-accent-soft: var(--c-accent-soft);
+  --color-accent-line: var(--c-accent-line);
 
   /* 语义色:只表达真实状态 */
-  --color-ok: #15803d;
-  --color-ok-soft: #e8f6ee;
-  --color-warn: #b45309;
-  --color-warn-soft: #fdf4e3;
-  --color-danger: #dc2626;
-  --color-danger-soft: #fdeeee;
+  --color-ok: var(--c-ok);
+  --color-ok-soft: var(--c-ok-soft);
+  --color-warn: var(--c-warn);
+  --color-warn-soft: var(--c-warn-soft);
+  --color-danger: var(--c-danger);
+  --color-danger-soft: var(--c-danger-soft);
 
   /* 分层阴影:低对比边框 + 轻阴影表达层次 */
-  --shadow-card: 0 1px 2px rgb(32 36 44 / 0.04), 0 10px 28px -18px rgb(32 36 44 / 0.14);
-  --shadow-pop: 0 16px 40px -12px rgb(32 36 44 / 0.16), 0 2px 6px rgb(32 36 44 / 0.05);
+  --shadow-card: var(--c-shadow-card);
+  --shadow-pop: var(--c-shadow-pop);
 
   --font-sans: 'IBM Plex Sans Variable', 'PingFang SC', 'Microsoft YaHei',
     'Noto Sans CJK SC', 'Source Han Sans SC', sans-serif;
@@ -49,6 +51,74 @@
   --animate-ui-in: ui-in 140ms cubic-bezier(0.16, 1, 0.3, 1);
   --animate-ui-out: ui-out 110ms ease-in;
   --animate-rise: rise 200ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* ---------- 亮色(默认) ---------- */
+:root {
+  --c-canvas: #f6f7f9;
+  --c-surface: #ffffff;
+  --c-surface-muted: #f1f3f6;
+  --c-surface-sunken: #e9ecf1;
+  --c-line: #e5e8ee;
+  --c-line-strong: #d2d8e2;
+
+  --c-ink: #20242c;
+  --c-ink-2: #454e5c;
+  --c-ink-3: #626b78;
+  --c-ink-4: #99a2b0;
+
+  --c-accent: #3b6ef5;
+  --c-accent-strong: #2b5be0;
+  --c-accent-soft: #edf2fe;
+  --c-accent-line: #cad9fc;
+
+  --c-ok: #15803d;
+  --c-ok-soft: #e8f6ee;
+  --c-warn: #b45309;
+  --c-warn-soft: #fdf4e3;
+  --c-danger: #dc2626;
+  --c-danger-soft: #fdeeee;
+
+  --c-shadow-card: 0 1px 2px rgb(32 36 44 / 0.04), 0 10px 28px -18px rgb(32 36 44 / 0.14);
+  --c-shadow-pop: 0 16px 40px -12px rgb(32 36 44 / 0.16), 0 2px 6px rgb(32 36 44 / 0.05);
+
+  --glow-1: rgb(59 110 245 / 0.05);
+  --glow-2: rgb(59 110 245 / 0.03);
+  --shimmer: rgb(255 255 255 / 0.72);
+}
+
+/* ---------- 暗色 ---------- */
+html.dark {
+  --c-canvas: #0e1116;
+  --c-surface: #151a21;
+  --c-surface-muted: #1c222b;
+  --c-surface-sunken: #232b36;
+  --c-line: #262e3a;
+  --c-line-strong: #364152;
+
+  --c-ink: #e9edf3;
+  --c-ink-2: #c6cdd8;
+  --c-ink-3: #8d97a6;
+  --c-ink-4: #5c6674;
+
+  --c-accent: #5b8af7;
+  --c-accent-strong: #7ba2f9;
+  --c-accent-soft: #1a2740;
+  --c-accent-line: #2c3f63;
+
+  --c-ok: #34d399;
+  --c-ok-soft: #12271e;
+  --c-warn: #fbbf24;
+  --c-warn-soft: #2b2213;
+  --c-danger: #f87171;
+  --c-danger-soft: #2f1a1a;
+
+  --c-shadow-card: 0 1px 2px rgb(0 0 0 / 0.3), 0 10px 28px -18px rgb(0 0 0 / 0.5);
+  --c-shadow-pop: 0 16px 40px -12px rgb(0 0 0 / 0.55), 0 2px 6px rgb(0 0 0 / 0.35);
+
+  --glow-1: rgb(91 138 247 / 0.08);
+  --glow-2: rgb(91 138 247 / 0.04);
+  --shimmer: rgb(255 255 255 / 0.06);
 }
 
 @keyframes ui-in {
@@ -84,11 +154,11 @@ body {
   line-height: 1.6;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  /* 极淡的冷色光晕,给纯白背景一点纵深,避免"死白" */
-  background-color: var(--color-canvas);
+  /* 极淡的冷色光晕,给背景一点纵深,避免大片纯色 */
+  background-color: var(--c-canvas);
   background-image:
-    radial-gradient(900px 480px at 10% -10%, rgb(59 110 245 / 0.05), transparent 70%),
-    radial-gradient(760px 420px at 100% 0%, rgb(59 110 245 / 0.03), transparent 72%);
+    radial-gradient(900px 480px at 10% -10%, var(--glow-1), transparent 70%),
+    radial-gradient(760px 420px at 100% 0%, var(--glow-2), transparent 72%);
   background-attachment: fixed;
   background-repeat: no-repeat;
 }
@@ -132,7 +202,7 @@ body {
   position: absolute;
   inset: 0;
   transform: translateX(-100%);
-  background: linear-gradient(90deg, transparent, rgb(255 255 255 / 0.72), transparent);
+  background: linear-gradient(90deg, transparent, var(--shimmer), transparent);
   animation: shimmer 1.4s infinite;
 }
 

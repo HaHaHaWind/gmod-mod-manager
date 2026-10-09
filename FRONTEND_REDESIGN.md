@@ -3,6 +3,8 @@
 > 依据《GMod_Frontend_Redesign_AI_Prompt.md》完成的一轮可运行、可验收的产品化改版。
 > 范围：仅修改 `frontend/`；后端、数据结构与部署方式零改动。
 > 验证：`npm run build`（vue-tsc 类型检查 + vite 构建）通过。
+>
+> **续篇**：本轮完成后应用户要求追加"仪表盘化与暗色主题"第二轮改版，详见 [frontend/docs/DASHBOARD_REDESIGN.md](frontend/docs/DASHBOARD_REDESIGN.md)（其中"默认进入模组库、不做监控大屏"两条原则已被用户确认推翻）。
 
 ---
 

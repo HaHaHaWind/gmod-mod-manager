@@ -55,7 +55,7 @@ const gridStyle = {
 <template>
   <div class="grid min-h-screen lg:grid-cols-[1.05fr_1fr]">
     <section
-      class="relative hidden flex-col justify-between overflow-hidden bg-ink p-12 text-white lg:flex"
+      class="relative hidden flex-col justify-between overflow-hidden bg-[#20242c] p-12 text-white lg:flex"
       :style="gridStyle"
     >
       <div class="flex items-center gap-2.5">
