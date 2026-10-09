@@ -42,6 +42,7 @@ def mod_view(m: Mod) -> dict:
         "protected": m.protected,
         "protected_reason": m.protected_reason,
         "metadata_state": m.metadata_state,
+        "metadata_zh": C.METADATA_ZH.get(m.metadata_state, m.metadata_state),
         "metadata_error": m.metadata_error,
         "time_updated": m.time_updated,
         "remote_file_size": m.remote_file_size,

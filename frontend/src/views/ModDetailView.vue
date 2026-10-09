@@ -143,7 +143,7 @@ const metaItems = computed<SpecItem[]>(() => {
   return [
     {
       label: '抓取状态',
-      value: m.metadata_state || '未抓取',
+      value: m.metadata_zh || m.metadata_state || '未抓取',
       note: m.metadata_error || undefined,
     },
     { label: '抓取时间', value: formatTime(m.metadata_fetched_at) },

@@ -50,7 +50,11 @@ def _post_with_retry(settings: Settings, form: dict) -> dict:
 
 
 def fetch_details(settings: Settings, ids: list[str]) -> tuple[dict[str, dict], list[dict]]:
-    """批量获取详情。返回 (成功映射 wid→detail, 失败列表 [{id, reason}])。"""
+    """批量获取详情。返回 (成功映射 wid→detail, 失败列表 [{id, reason, kind}])。
+
+    kind=unavailable:物品不可访问/已下架,属稳定状态(不重试);
+    kind=error:需重试的错误(如物品不属于 Garry's Mod)。
+    """
     ok: dict[str, dict] = {}
     failed: list[dict] = []
     ordered = list(dict.fromkeys(ids))
@@ -70,11 +74,15 @@ def fetch_details(settings: Settings, ids: list[str]) -> tuple[dict[str, dict], 
         for wid in chunk:
             d = by_id.get(wid)
             if d is None:
-                failed.append({"id": wid, "reason": "Steam 响应中缺少该项"})
+                failed.append({"id": wid, "reason": "Steam 响应中缺少该项", "kind": "unavailable"})
             elif int(d.get("result", 0)) != 1:
-                failed.append({"id": wid, "reason": f"Steam 返回 result={d.get('result')}(1 为成功)"})
+                code = int(d.get("result") or 0)
+                msg = ("该创意工坊物品已被删除或下架" if code == 9
+                       else f"该创意工坊物品不可访问(result={code})")
+                failed.append({"id": wid, "reason": msg, "kind": "unavailable"})
             elif int(d.get("consumer_app_id", 0) or 0) not in (0, 4000):
-                failed.append({"id": wid, "reason": "该物品不属于 Garry's Mod(AppId=4000)"})
+                failed.append({"id": wid, "reason": "该物品不属于 Garry's Mod(AppId=4000)",
+                               "kind": "error"})
             else:
                 ok[wid] = d
     return ok, failed
@@ -142,7 +150,7 @@ def refresh_metadata(session: Session, settings: Settings, ids: list[str]) -> di
     if not need:
         return stats
     details, failed = fetch_details(settings, need)
-    failed_map = {f["id"]: f["reason"] for f in failed}
+    failed_map = {f["id"]: f for f in failed}
     for wid in need:
         mod = session.get(Mod, wid)
         if mod is None:
@@ -150,18 +158,18 @@ def refresh_metadata(session: Session, settings: Settings, ids: list[str]) -> di
         if wid in details:
             d = details[wid]
             if int(d.get("file_visibility", 1) or 1) == 0:
-                mark_unavailable(mod, "物品不可公开访问")
+                mark_unavailable(mod, "该物品不可公开访问")
                 stats["unavailable"] += 1
             else:
                 apply_details(mod, d)
                 stats["refreshed"] += 1
         elif wid in failed_map:
-            reason = failed_map[wid]
-            if "result=" in reason and "失败" in reason:
-                mark_unavailable(mod, reason)
+            f = failed_map[wid]
+            if f.get("kind") == "unavailable":
+                mark_unavailable(mod, f["reason"])
                 stats["unavailable"] += 1
             else:
-                mark_error(mod, reason)
+                mark_error(mod, f["reason"])
                 stats["failed"] += 1
     session.commit()
     return stats

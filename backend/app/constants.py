@@ -102,3 +102,7 @@ APPLY_ZH = {
 RUNTIME_ZH = {
     "loaded": "已加载", "not_loaded": "未加载", "unknown": "未知(无运行时探针)",
 }
+METADATA_ZH = {
+    "fresh": "已获取", "stale": "待刷新", "unavailable": "不可访问(已下架)",
+    "error": "抓取失败", "none": "未抓取",
+}

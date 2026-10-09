@@ -40,6 +40,7 @@ export interface ModView {
   protected: boolean
   protected_reason: string
   metadata_state: string
+  metadata_zh: string
   metadata_error: string
   time_updated: string | null
   remote_file_size: number | null
