@@ -5,6 +5,8 @@
 > 1. **组件质感移植**——对齐 MCSManager(ant-design-vue)的卡片阴影、圆角、按钮/输入框材质;
 > 2. **动效与加载反馈**——路由切换过渡、全局加载进度条、面包屑微动效。
 > 验证:每轮 `npm run build`(vue-tsc + vite)通过。
+>
+> **续篇**:本轮之后追加"全站交互动画层"(浮层双向出入场、卡片网格切换、数字滚动、页签指示条、主题图标),详见 [INTERACTION_MOTION.md](./INTERACTION_MOTION.md)。
 
 ---
 
